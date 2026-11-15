@@ -234,6 +234,8 @@ describe('revealInvalidFields', () => {
       subtitle: 'Fields to complete or correct: 2. First: Period',
       kind: 'error',
       isLowContrast: false,
+      autoClose: true,
+      timeoutInMs: 8000,
     });
   });
 

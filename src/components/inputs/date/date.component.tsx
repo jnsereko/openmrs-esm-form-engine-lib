@@ -108,26 +108,24 @@ const DateField: React.FC<FormFieldInputProps> = ({ field, value: dateValue, err
         {field.datePickerFormat === 'both' || field.datePickerFormat === 'timer' ? (
           <div>
             <Layer>
+              {/* Beside a date picker, the time input has its own id (a shared one let the date's label focus the
+                  time input, so typed date text landed there), shows only a time (the date string was rejected:
+                  "does not conform to HH:mm"), and leaves the field's error to the date picker (its icon covered
+                  the clock). */}
               <TimePicker
                 className={classNames(styles.boldedLabel, styles.timeInput)}
-                id={field.id}
+                id={field.datePickerFormat === 'timer' ? field.id : `${field.id}-time`}
                 labelText={timePickerLabel}
                 placeholder="HH:MM"
                 pattern="(1[012]|[1-9]):[0-5][0-9]$"
                 type="time"
                 disabled={field.datePickerFormat === 'timer' ? field.isDisabled : !dateValue ? true : false}
-                invalid={errors.length > 0}
+                invalid={field.datePickerFormat === 'timer' && errors.length > 0}
                 invalidText={errors[0]?.message}
                 readOnly={isTrue(field.readonly)}
-                warning={warnings.length > 0}
+                warning={field.datePickerFormat === 'timer' && warnings.length > 0}
                 warningText={warnings[0]?.message}
-                value={
-                  time
-                    ? time
-                    : dateValue instanceof Date
-                    ? dateValue.toLocaleDateString(window.navigator.language)
-                    : dateValue
-                }
+                value={time}
                 onChange={onTimeChange}
               />
             </Layer>

@@ -85,4 +85,57 @@ describe('DateField Component', () => {
       expect(message).toBeInTheDocument();
     });
   });
+
+  it('gives the time input its own id and only a time value, beside the date picker', async () => {
+    await renderDateField({
+      field: dateFieldMock,
+      value: new Date(2026, 10, 11, 14, 5),
+      errors: [],
+      warnings: [],
+      setFieldValue: mockSetFieldValue,
+    });
+
+    const timeInput = screen.getByLabelText('Time') as HTMLInputElement;
+    expect(timeInput.id).toBe('test-date-field-time');
+    expect(timeInput.value).toBe('14:05');
+  });
+
+  it('never puts the date text in the time input', async () => {
+    await renderDateField({
+      field: dateFieldMock,
+      value: '11/11/2026',
+      errors: [],
+      warnings: [],
+      setFieldValue: mockSetFieldValue,
+    });
+
+    expect((screen.getByLabelText('Time') as HTMLInputElement).value).toBe('');
+  });
+
+  it('leaves the error to the date picker, so the time input shows no error icon', async () => {
+    await renderDateField({
+      field: dateFieldMock,
+      value: new Date(),
+      errors: [{ resultType: 'error', message: 'Error message' }],
+      warnings: [],
+      setFieldValue: mockSetFieldValue,
+    });
+
+    expect(screen.getByLabelText('Time')).not.toHaveAttribute('data-invalid');
+    expect(screen.getAllByText('Error message')).toHaveLength(1);
+  });
+
+  it('keeps the error on the time input when it is the only input', async () => {
+    await renderDateField({
+      field: { ...dateFieldMock, datePickerFormat: 'timer' },
+      value: new Date(),
+      errors: [{ resultType: 'error', message: 'Error message' }],
+      warnings: [],
+      setFieldValue: mockSetFieldValue,
+    });
+
+    const timeInput = screen.getByLabelText('Test Date Field') as HTMLInputElement;
+    expect(timeInput.id).toBe('test-date-field');
+    expect(timeInput).toHaveAttribute('data-invalid');
+  });
 });

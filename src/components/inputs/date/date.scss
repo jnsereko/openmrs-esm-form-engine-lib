@@ -28,6 +28,13 @@
 
 .timeInput {
   width: auto;
+
+  // Room for the native clock button before Carbon's error / warning icon
+  :global(.cds--time-picker__input-field-error) {
+    inline-size: auto;
+    padding-inline-end: 2.5rem;
+  }
+
   :hover {
     cursor: text;
   }

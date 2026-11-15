@@ -86,6 +86,10 @@ export function revealInvalidFields(invalidFields: FormField[], t: TFunction) {
     ),
     kind: 'error',
     isLowContrast: false,
+    // The field is scrolled into view and focused, so the snackbar only points at it. An error snackbar
+    // stays until closed by default, and those of earlier blocked saves piled up across forms.
+    autoClose: true,
+    timeoutInMs: 8000,
   });
 
   const fieldContainer = Array.from(document.querySelectorAll<HTMLElement>('[data-form-field-id]')).find(
