@@ -33,6 +33,7 @@ export { default as preclinicReviewComponentBody } from './component-preclinic-r
 export { default as radioButtonFormSchema } from './radio-button-form.json';
 export { default as readOnlyValidationForm } from './read-only-validation-form.json';
 export { default as referenceByMappingForm } from './reference-by-mapping-form.json';
+export { default as requiredAcrossPagesForm } from './required-across-pages-form.json';
 export { default as requiredTestForm } from './required-form.json';
 export { default as sampleFieldsForm } from './sample-fields.json';
 export { default as testEnrolmentForm } from './test-enrolment-form.json';

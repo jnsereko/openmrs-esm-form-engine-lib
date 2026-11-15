@@ -1,0 +1,209 @@
+{
+  "name": "Required Fields Across Sections and Pages",
+  "pages": [
+    {
+      "label": "Not applicable",
+      "hide": {
+        "hideWhenExpression": "sex !== 'F'"
+      },
+      "sections": [
+        {
+          "label": "Not applicable",
+          "isExpanded": "true",
+          "questions": [
+            {
+              "label": "This form does not apply to this patient",
+              "type": "control",
+              "id": "notApplicableBlock",
+              "hide": {
+                "hideWhenExpression": "sex !== 'F'"
+              },
+              "questionOptions": {
+                "rendering": "text"
+              },
+              "validators": [
+                {
+                  "type": "js_expression",
+                  "failsWhenExpression": "sex === 'F'",
+                  "message": "This form does not apply to this patient"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Consultation",
+      "hide": {
+        "hideWhenExpression": "sex === 'F'"
+      },
+      "sections": [
+        {
+          "label": "General",
+          "isExpanded": "true",
+          "questions": [
+            {
+              "label": "Smoking",
+              "type": "obs",
+              "id": "smoking",
+              "questionOptions": {
+                "rendering": "radio",
+                "concept": "a1f3c5e2-0001-4a6b-9d1e-2b7c8f000001",
+                "answers": [
+                  {
+                    "concept": "1065AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                    "label": "Yes"
+                  },
+                  {
+                    "concept": "1066AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                    "label": "No"
+                  }
+                ]
+              },
+              "validators": [],
+              "required": true
+            },
+            {
+              "label": "Alcohol",
+              "type": "obs",
+              "id": "alcohol",
+              "questionOptions": {
+                "rendering": "radio",
+                "concept": "a1f3c5e2-0002-4a6b-9d1e-2b7c8f000002",
+                "answers": [
+                  {
+                    "concept": "1065AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                    "label": "Yes"
+                  },
+                  {
+                    "concept": "1066AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                    "label": "No"
+                  }
+                ]
+              },
+              "validators": [],
+              "required": true
+            }
+          ]
+        },
+        {
+          "label": "History",
+          "isExpanded": "true",
+          "questions": [
+            {
+              "label": "Gravidity",
+              "type": "obs",
+              "id": "gravida",
+              "required": true,
+              "questionOptions": {
+                "rendering": "number",
+                "concept": "a1f3c5e2-0003-4a6b-9d1e-2b7c8f000003"
+              },
+              "validators": []
+            },
+            {
+              "label": "Parity",
+              "type": "obs",
+              "id": "parity",
+              "required": true,
+              "questionOptions": {
+                "rendering": "number",
+                "concept": "a1f3c5e2-0004-4a6b-9d1e-2b7c8f000004"
+              },
+              "validators": []
+            }
+          ]
+        },
+        {
+          "label": "Screening",
+          "isExpanded": "true",
+          "questions": [
+            {
+              "label": "Screening done",
+              "type": "obs",
+              "id": "screening",
+              "questionOptions": {
+                "rendering": "radio",
+                "concept": "a1f3c5e2-0005-4a6b-9d1e-2b7c8f000005",
+                "answers": [
+                  {
+                    "concept": "1065AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                    "label": "Yes"
+                  },
+                  {
+                    "concept": "1066AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                    "label": "No"
+                  }
+                ]
+              },
+              "validators": [],
+              "required": true
+            },
+            {
+              "label": "Screening type",
+              "type": "obs",
+              "id": "screeningType",
+              "questionOptions": {
+                "rendering": "radio",
+                "concept": "a1f3c5e2-0006-4a6b-9d1e-2b7c8f000006",
+                "answers": [
+                  {
+                    "concept": "1065AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                    "label": "Yes"
+                  },
+                  {
+                    "concept": "1066AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                    "label": "No"
+                  }
+                ]
+              },
+              "validators": [],
+              "hide": {
+                "hideWhenExpression": "screening !== '1065AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Follow-up",
+      "sections": [
+        {
+          "label": "Follow-up",
+          "isExpanded": "true",
+          "questions": [
+            {
+              "label": "Referred",
+              "type": "obs",
+              "id": "referred",
+              "questionOptions": {
+                "rendering": "radio",
+                "concept": "a1f3c5e2-0007-4a6b-9d1e-2b7c8f000007",
+                "answers": [
+                  {
+                    "concept": "1065AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                    "label": "Yes"
+                  },
+                  {
+                    "concept": "1066AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                    "label": "No"
+                  }
+                ]
+              },
+              "validators": [],
+              "required": true
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "processor": "EncounterFormProcessor",
+  "encounterType": "e22e39fd-7db2-45e7-80f1-60fa0d5a4378",
+  "referencedForms": [],
+  "uuid": "5b1e7c0a-6f43-4c1e-9a52-3c2d8e1f5090",
+  "description": "Required fields spread over sections and pages, beside a hidden page whose control always fails",
+  "version": "1.0"
+}

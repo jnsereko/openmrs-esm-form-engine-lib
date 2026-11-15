@@ -42,6 +42,7 @@ import {
   postSubmissionTestForm,
   readOnlyValidationForm,
   referenceByMappingForm,
+  requiredAcrossPagesForm,
   requiredTestForm,
   sampleFieldsForm,
   testEnrolmentForm,
@@ -381,6 +382,27 @@ describe('Form engine component', () => {
       errorMessages.forEach((errorMessage, index) => {
         expect(errorMessage).toBeInTheDocument();
       });
+      expect(saveEncounterMock).toHaveBeenCalledTimes(0);
+    });
+
+    it('should flag every required field across sections and pages on the first save', async () => {
+      const saveEncounterMock = vi.spyOn(api, 'saveEncounter');
+
+      await act(async () => {
+        renderForm(null, requiredAcrossPagesForm);
+      });
+
+      await user.click(screen.getByRole('button', { name: /save/i }));
+
+      // two radios in the first section, two numbers in the second, one radio in the third and one on
+      // another page; the hidden page's failing control and the hidden follow-up radio are not counted
+      expect(screen.getAllByText('Field is mandatory')).toHaveLength(6);
+      expect(screen.queryByText('This form does not apply to this patient')).not.toBeInTheDocument();
+      expect(saveEncounterMock).toHaveBeenCalledTimes(0);
+
+      await user.click(screen.getByRole('button', { name: /save/i }));
+
+      expect(screen.getAllByText('Field is mandatory')).toHaveLength(6);
       expect(saveEncounterMock).toHaveBeenCalledTimes(0);
     });
 
