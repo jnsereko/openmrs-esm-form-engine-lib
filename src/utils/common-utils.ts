@@ -1,6 +1,7 @@
 import { type FormSchema, type FormField, type OpenmrsObs, type RenderType } from '../types';
 import { isEmpty } from '../validators/form-validator';
 import { formatDate, parseDate, type FormatDateOptions, type Visit } from '@openmrs/esm-framework';
+import { type TFunction } from 'i18next';
 
 export function flattenObsList(obsList: OpenmrsObs[]): OpenmrsObs[] {
   const flattenedList: OpenmrsObs[] = [];
@@ -54,6 +55,19 @@ export function hasSubmission(field: FormField) {
 
 export function isViewMode(sessionMode: string) {
   return sessionMode === 'view' || sessionMode === 'embedded-view';
+}
+
+/**
+ * Translates the answer label, or each label of a multi-answer value, that a coded field's adapter
+ * returns for display. The edit mode renders every answer as `t(answer.label)`, so the form's
+ * translations (else the concept's name in the session locale, which the label falls back to)
+ * apply; the view mode shows the same text this way instead of the label as written in the form.
+ */
+export function translateAnswerLabels(t: TFunction, displayValue: any) {
+  if (Array.isArray(displayValue)) {
+    return displayValue.map((label) => translateAnswerLabels(t, label));
+  }
+  return typeof displayValue === 'string' && displayValue ? t(displayValue) : displayValue;
 }
 
 export function parseToLocalDateTime(dateString: string): Date {

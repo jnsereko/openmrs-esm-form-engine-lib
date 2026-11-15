@@ -1,5 +1,5 @@
 import React from 'react';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { act, render, screen } from '@testing-library/react';
 import { type FetchResponse, openmrsFetch, usePatient, useSession } from '@openmrs/esm-framework';
@@ -8,6 +8,8 @@ import { mockPatient, mockSessionDataResponse, mockVisit } from '__mocks__';
 import { multiSelectFormSchema } from '__mocks__/forms';
 import FormEngine from '../../../form-engine.component';
 import { FormProvider, type FormProviderProps } from '../../../provider/form-provider';
+import { useTranslation } from 'react-i18next';
+import { ObsAdapter } from '../../../adapters/obs-adapter';
 import MultiSelect from './multi-select.component';
 
 const mockOpenmrsFetch = vi.mocked(openmrsFetch);
@@ -113,14 +115,18 @@ const checkboxField = {
   isHidden: false,
 } as FormField;
 
-const renderCheckboxGroup = async (errors: ValidationResult[], warnings: ValidationResult[] = []) => {
+const renderCheckboxGroup = async (
+  errors: ValidationResult[],
+  warnings: ValidationResult[] = [],
+  { sessionMode = 'enter', value = [] }: { sessionMode?: string; value?: Array<string> } = {},
+) => {
   const providerProps = {
     methods: {},
     workspaceLayout: 'minimized',
     deletedFields: [],
     layoutType: 'small-desktop',
-    sessionMode: 'enter',
-    formFieldAdapters: {},
+    sessionMode,
+    formFieldAdapters: { obs: ObsAdapter },
     patient: mockPatient,
     formJson: multiSelectFormSchema,
     visit: mockVisit,
@@ -133,7 +139,7 @@ const renderCheckboxGroup = async (errors: ValidationResult[], warnings: Validat
   await act(async () => {
     render(
       <FormProvider {...providerProps}>
-        <MultiSelect field={checkboxField} value={[]} errors={errors} warnings={warnings} setFieldValue={vi.fn()} />
+        <MultiSelect field={checkboxField} value={value} errors={errors} warnings={warnings} setFieldValue={vi.fn()} />
       </FormProvider>,
     );
   });
@@ -162,5 +168,25 @@ describe('non-searchable checkbox group validation', () => {
     const group = screen.getByRole('group', { name: /Was this visit scheduled/i });
     expect(group).not.toHaveClass('cds--checkbox-group--invalid');
     expect(screen.queryByText('Field is mandatory')).not.toBeInTheDocument();
+  });
+});
+
+describe('checkbox group in a French session', () => {
+  // The form's translations file, as `useFormJson` loads it into i18next
+  const french = { 'Was this visit scheduled?': 'Visite programmée ?', 'Scheduled visit': 'Visite programmée' };
+
+  beforeEach(() => {
+    vi.spyOn(useTranslation(), 't').mockImplementation(((key: string) => french[key] ?? key) as any);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each(['view', 'embedded-view'])('shows the selected answers translated in %s mode', async (sessionMode) => {
+    await renderCheckboxGroup([], [], { sessionMode, value: ['a89b6440-1350-11df-a1f1-0026b9348838'] });
+
+    expect(screen.getByText('Visite programmée')).toBeInTheDocument();
+    expect(screen.queryByText('Scheduled visit')).not.toBeInTheDocument();
   });
 });

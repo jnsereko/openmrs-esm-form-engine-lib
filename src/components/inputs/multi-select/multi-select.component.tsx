@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Checkbox, CheckboxGroup, FilterableMultiSelect, Layer, Tag } from '@carbon/react';
 import { useTranslation } from 'react-i18next';
 import { isTrue } from '../../../utils/boolean-utils';
+import { translateAnswerLabels } from '../../../utils/common-utils';
 import { shouldUseInlineLayout } from '../../../utils/form-helper';
 import { type FormFieldInputProps } from '../../../types';
 import { useFormProviderContext } from '../../../provider/form-provider';
@@ -81,7 +82,7 @@ const MultiSelect: React.FC<FormFieldInputProps> = ({ field, value, errors, warn
     <div className={styles.formField}>
       <FieldValueView
         label={t(field.label)}
-        value={value ? formFieldAdapters[field.type]?.getDisplayValue(field, value) : value}
+        value={value ? translateAnswerLabels(t, formFieldAdapters[field.type]?.getDisplayValue(field, value)) : value}
         conceptName={field.meta?.concept?.display}
         isInline={isInline}
       />

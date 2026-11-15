@@ -1,11 +1,13 @@
 import React from 'react';
-import { vi, describe, it, expect, beforeEach, type Mock } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type FetchResponse, openmrsFetch, usePatient, useSession } from '@openmrs/esm-framework';
 import { mockPatient, mockSessionDataResponse, mockVisit } from '__mocks__';
 import { radioButtonFormSchema } from '__mocks__/forms';
+import { useTranslation } from 'react-i18next';
 import { useFormProviderContext } from 'src/provider/form-provider';
+import { ObsAdapter } from 'src/adapters/obs-adapter';
 import Radio from './radio.component';
 
 const mockOpenmrsFetch = vi.mocked(openmrsFetch);
@@ -194,6 +196,38 @@ describe('Radio Component', () => {
     expect(screen.getByLabelText('New visit')).toBeDisabled();
     expect(screen.getByLabelText('Return visit type')).toBeDisabled();
     expect(screen.getByLabelText('Other')).toBeDisabled();
+  });
+
+  describe('in a French session', () => {
+    // The form's translations file, as `useFormJson` loads it into i18next
+    const french = { 'Visit type': 'Type de visite', 'New visit': 'Nouvelle visite', 'Return visit type': 'Visite de retour' };
+
+    beforeEach(() => {
+      vi.spyOn(useTranslation(), 't').mockImplementation(((key: string) => french[key] ?? key) as any);
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it.each(['view', 'embedded-view'])('shows the selected answer translated in %s mode', async (sessionMode) => {
+      mockUseFormProviderContext.mockReturnValue({
+        ...mockProviderValues,
+        sessionMode,
+        formFieldAdapters: { obs: ObsAdapter },
+      });
+
+      await renderForm({ ...addTestValues, value: '160530AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' });
+
+      expect(screen.getByText('Visite de retour')).toBeInTheDocument();
+      expect(screen.queryByText('Return visit type')).not.toBeInTheDocument();
+    });
+
+    it('shows the answer with the same text in view mode as in data entry', async () => {
+      mockUseFormProviderContext.mockReturnValue({ ...mockProviderValues });
+      await renderForm(addTestValues);
+      expect(screen.getByLabelText('Nouvelle visite')).toBeInTheDocument();
+    });
   });
 
   describe('changing the answer', () => {

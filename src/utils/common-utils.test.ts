@@ -8,6 +8,7 @@ import {
   isViewMode,
   parseToLocalDateTime,
   pxToRem,
+  translateAnswerLabels,
   updateFormSectionReferences,
 } from './common-utils';
 import { vi, describe, it, expect, type Mock } from 'vitest';
@@ -15,6 +16,7 @@ import { type Visit } from '@openmrs/esm-framework';
 import { isEmpty } from '../validators/form-validator';
 import { obsList } from '__mocks__/forms';
 import { type FormField } from '../types';
+import { type TFunction } from 'i18next';
 
 vi.mock('../validators/form-validator', () => ({
   isEmpty: vi.fn(),
@@ -196,6 +198,30 @@ describe('isViewMode', () => {
   it('returns false for enter and edit', () => {
     expect(isViewMode('enter')).toBe(false);
     expect(isViewMode('edit')).toBe(false);
+  });
+});
+
+describe('translateAnswerLabels', () => {
+  const french = { Yes: 'Oui', Mask: 'Masque', 'Dorsal (supine)': 'Dorsale' };
+  const t = vi.fn((key: string) => french[key] ?? key) as unknown as TFunction;
+
+  it('translates a single answer label', () => {
+    expect(translateAnswerLabels(t, 'Dorsal (supine)')).toBe('Dorsale');
+  });
+
+  it('translates each label of a multi-answer value', () => {
+    expect(translateAnswerLabels(t, ['Yes', 'Mask'])).toEqual(['Oui', 'Masque']);
+  });
+
+  it('keeps a label the translations do not cover', () => {
+    expect(translateAnswerLabels(t, 'Masque laryngé')).toBe('Masque laryngé');
+  });
+
+  it('passes empty and non-text values through untranslated', () => {
+    expect(translateAnswerLabels(t, undefined)).toBeUndefined();
+    expect(translateAnswerLabels(t, '')).toBe('');
+    expect(translateAnswerLabels(t, 12)).toBe(12);
+    expect(t).not.toHaveBeenCalled();
   });
 });
 

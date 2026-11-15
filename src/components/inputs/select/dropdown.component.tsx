@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Dropdown as DropdownInput, Layer } from '@carbon/react';
 import { shouldUseInlineLayout } from '../../../utils/form-helper';
 import { isTrue } from '../../../utils/boolean-utils';
+import { translateAnswerLabels } from '../../../utils/common-utils';
 import { isEmpty } from '../../../validators/form-validator';
 import { NullSelectOption } from '../../../constants';
 import { type FormFieldInputProps } from '../../../types';
@@ -53,7 +54,7 @@ const Dropdown: React.FC<FormFieldInputProps> = ({ field, value, errors, warning
   return sessionMode == 'view' || sessionMode == 'embedded-view' ? (
     <FieldValueView
       label={t(field.label)}
-      value={value ? formFieldAdapters[field.type].getDisplayValue(field, value) : value}
+      value={value ? translateAnswerLabels(t, formFieldAdapters[field.type].getDisplayValue(field, value)) : value}
       conceptName={field.meta?.concept?.display}
       isInline={isInline}
     />
