@@ -78,7 +78,7 @@ async function withVisitAsItIsNow(
       title: t('visitHasEnded', 'This visit has ended'),
       subtitle: t(
         'visitEndedSaveToSaveInIt',
-        'The visit was ended on {{stopDatetime}}. The form is kept: save it again to save it in that visit.',
+        'The visit was ended on {{- stopDatetime}}. The form is kept: save it again to save it in that visit.',
         { stopDatetime: formatDatetime(parseDate(endedVisit.stopDatetime)) },
       ),
       kind: 'warning',
