@@ -37,6 +37,12 @@ interface FormEngineProps {
   hideControls?: boolean;
   hidePatientBanner?: boolean;
   preFilledQuestions?: PreFilledQuestions;
+  /**
+   * Encounter types (uuids) whose new encounters are filed at the session location. Every other new
+   * encounter is filed at its visit's location, falling back to the session location when there is
+   * no visit or the visit has no location. A form's own encounter location field always wins.
+   */
+  sessionLocationEncounterTypes?: Array<string>;
 }
 
 const FormEngine = ({
@@ -55,6 +61,7 @@ const FormEngine = ({
   hideControls = false,
   hidePatientBanner = false,
   preFilledQuestions,
+  sessionLocationEncounterTypes,
 }: FormEngineProps) => {
   const { t } = useTranslation();
   const session = useSession();
@@ -150,6 +157,7 @@ const FormEngine = ({
           location={session?.sessionLocation}
           provider={session?.currentProvider}
           visit={visit}
+          sessionLocationEncounterTypes={sessionLocationEncounterTypes}
           handleConfirmQuestionDeletion={handleConfirmQuestionDeletion}
           isFormExpanded={isFormExpanded}
           formSubmissionProps={{

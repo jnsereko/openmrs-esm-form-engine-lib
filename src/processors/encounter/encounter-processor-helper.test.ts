@@ -179,6 +179,48 @@ describe('getMutableSessionProps', () => {
 
     expect(getMutableSessionProps(context).encounterLocation).toBe('encounter-location-uuid');
   });
+
+  describe("a new encounter's location (UVL-EMR #691)", () => {
+    const opdVisit = () => visitFixture({ location: { uuid: 'visit-location-uuid' } } as Partial<Visit>);
+
+    it("files a new encounter at its visit's location rather than the session location", () => {
+      expect(getMutableSessionProps(buildContext({ visit: opdVisit() })).encounterLocation).toBe('visit-location-uuid');
+    });
+
+    it('falls back to the session location without a visit or a visit location', () => {
+      expect(getMutableSessionProps(buildContext({ visit: undefined })).encounterLocation).toBe('session-location-uuid');
+      expect(getMutableSessionProps(buildContext({ visit: visitFixture() })).encounterLocation).toBe(
+        'session-location-uuid',
+      );
+    });
+
+    it('keeps the session location for the encounter types listed in sessionLocationEncounterTypes', () => {
+      const context = buildContext({
+        visit: opdVisit(),
+        sessionLocationEncounterTypes: ['admission-type-uuid', 'encounter-type-uuid'],
+      });
+
+      expect(getMutableSessionProps(context).encounterLocation).toBe('session-location-uuid');
+      expect(
+        getMutableSessionProps(buildContext({ visit: opdVisit(), sessionLocationEncounterTypes: ['other-type-uuid'] }))
+          .encounterLocation,
+      ).toBe('visit-location-uuid');
+    });
+
+    it("prefers the form's own location field, and keeps an edited encounter's location", () => {
+      const withField = buildContext({
+        visit: opdVisit(),
+        formFields: [withSubmission(buildField({ id: 'location', type: 'encounterLocation' }), 'chosen-location-uuid')],
+      });
+      expect(getMutableSessionProps(withField).encounterLocation).toBe('chosen-location-uuid');
+
+      const edited = buildContext({
+        visit: opdVisit(),
+        domainObjectValue: { uuid: 'encounter-uuid', location: { uuid: 'encounter-location-uuid' } },
+      });
+      expect(getMutableSessionProps(edited).encounterLocation).toBe('encounter-location-uuid');
+    });
+  });
 });
 
 describe('preparePatientIdentifiers', () => {

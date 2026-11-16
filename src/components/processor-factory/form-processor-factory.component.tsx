@@ -40,6 +40,7 @@ const factoryOwnedContextKeys = [
   'sessionMode',
   'sessionDate',
   'location',
+  'sessionLocationEncounterTypes',
   'currentProvider',
   'layoutType',
   'processor',
@@ -65,7 +66,17 @@ const FormProcessorFactory = ({
   isSubForm = false,
   setIsLoadingFormDependencies,
 }: FormProcessorFactoryProps) => {
-  const { patient, sessionMode, formProcessors, layoutType, location, provider, sessionDate, visit } = useFormFactory();
+  const {
+    patient,
+    sessionMode,
+    formProcessors,
+    layoutType,
+    location,
+    sessionLocationEncounterTypes,
+    provider,
+    sessionDate,
+    visit,
+  } = useFormFactory();
   const { t } = useTranslation();
   const formId = useId();
 
@@ -106,6 +117,7 @@ const FormProcessorFactory = ({
       sessionMode,
       layoutType,
       location,
+      sessionLocationEncounterTypes,
       currentProvider: provider,
       processor,
       sessionDate,
@@ -120,6 +132,7 @@ const FormProcessorFactory = ({
       sessionMode,
       layoutType,
       location,
+      sessionLocationEncounterTypes,
       provider,
       processor,
       sessionDate,

@@ -13,6 +13,8 @@ export interface FormProcessorContextProps {
   sessionMode: SessionMode;
   sessionDate: Date;
   location: OpenmrsResource;
+  /** Encounter types whose new encounters are filed at `location` rather than at the visit's location */
+  sessionLocationEncounterTypes?: Array<string>;
   currentProvider: OpenmrsResource;
   layoutType: LayoutType;
   domainObjectValue?: OpenmrsResource;

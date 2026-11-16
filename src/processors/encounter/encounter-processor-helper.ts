@@ -191,6 +191,8 @@ export function getMutableSessionProps(context: FormContextProps): MutableSessio
     sessionDate,
     domainObjectValue: encounter,
     visit,
+    formJson,
+    sessionLocationEncounterTypes,
   } = context;
   const { defaultEncounterRole } = customDependencies;
   const encounterRole =
@@ -207,9 +209,18 @@ export function getMutableSessionProps(context: FormContextProps): MutableSessio
   const encounterDate =
     explicitEncounterDate ??
     (encounter?.encounterDatetime ? new Date(encounter.encounterDatetime) : defaultEncounterDate);
+  // The form's own location field wins, and an edited encounter keeps its location. A new encounter is
+  // filed at its visit's location (the service the patient is seen in), so that a visit's forms count
+  // under that service whatever location the user signed in at; without a visit location, at the
+  // session location. Encounter types listed in `sessionLocationEncounterTypes` (admission, transfer,
+  // discharge: the ward) stay at the session location.
+  const newEncounterAtSessionLocation = Boolean(
+    formJson?.encounterType && sessionLocationEncounterTypes?.includes(formJson.encounterType),
+  );
   const encounterLocation =
     formFields.find((field) => field.type === 'encounterLocation')?.meta.submission?.newValue ||
     encounter?.location?.uuid ||
+    (newEncounterAtSessionLocation ? undefined : visit?.location?.uuid) ||
     location.uuid;
   return {
     encounterRole: encounterRole as string,

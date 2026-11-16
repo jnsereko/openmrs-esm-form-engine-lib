@@ -27,6 +27,7 @@ interface FormFactoryProviderContextProps {
   workspaceLayout: 'minimized' | 'maximized';
   visit: Visit;
   location: OpenmrsResource;
+  sessionLocationEncounterTypes?: Array<string>;
   provider: OpenmrsResource;
   isFormExpanded: boolean;
   registerForm: (formId: string, isSubForm: boolean, context: FormContextProps) => void;
@@ -44,6 +45,7 @@ interface FormFactoryProviderProps {
   location: OpenmrsResource;
   provider: OpenmrsResource;
   visit: Visit;
+  sessionLocationEncounterTypes?: Array<string>;
   isFormExpanded: boolean;
   children: React.ReactNode;
   isLoadingDependencies?: boolean;
@@ -71,6 +73,7 @@ export const FormFactoryProvider: React.FC<FormFactoryProviderProps> = ({
   location,
   provider,
   visit,
+  sessionLocationEncounterTypes,
   isFormExpanded = true,
   children,
   isLoadingDependencies = false,
@@ -205,6 +208,7 @@ export const FormFactoryProvider: React.FC<FormFactoryProviderProps> = ({
         workspaceLayout,
         visit,
         location,
+        sessionLocationEncounterTypes,
         provider,
         isFormExpanded,
         registerForm,
