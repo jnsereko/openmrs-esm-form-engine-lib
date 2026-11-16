@@ -3,6 +3,7 @@ import { vi, describe, it, expect, test, beforeEach, afterEach, type Mock, type 
 import { showSnackbar } from '@openmrs/esm-framework';
 import {
   createAttachment,
+  getVisitDates,
   saveEncounter,
   savePatientIdentifier,
   savePersonAttribute,
@@ -1014,5 +1015,69 @@ describe('EncounterFormProcessor', () => {
         expect(initialValues.item_1).toBe(answered.includes('item_1') ? 'Answer to item_1' : '');
       },
     );
+  });
+
+  describe('processSubmission when the visit was ended while the form was open', () => {
+    const visitUuid = 'visit-ended-while-open-uuid';
+    const startDatetime = '2026-11-15T08:00:00.000+0200';
+    const stopDatetime = '2026-11-15T23:59:59.000+0200';
+    const openVisit = { ...mockVisit, uuid: visitUuid, startDatetime, stopDatetime: null };
+
+    beforeEach(() => {
+      vi.mocked(saveEncounter)
+        .mockReset()
+        .mockResolvedValue(savedEncounterResponse() as never);
+      vi.mocked(getVisitDates).mockReset();
+    });
+
+    it('keeps the form with a warning, then saves the encounter in the ended visit, dated within it', async () => {
+      vi.mocked(getVisitDates).mockResolvedValue({ uuid: visitUuid, startDatetime, stopDatetime });
+      // the form was opened after the visit had been ended elsewhere
+      const context = buildSubmissionContext({
+        visit: openVisit as never,
+        sessionDate: new Date('2026-11-16T00:10:00.000+0200'),
+      });
+
+      await expect(submit(context)).rejects.toEqual(
+        expect.objectContaining({ title: 'visitHasEnded', kind: 'warning' }),
+      );
+      expect(saveEncounter).not.toHaveBeenCalled();
+
+      await submit(context);
+
+      expect(saveEncounter).toHaveBeenCalledTimes(1);
+      const [, payload] = vi.mocked(saveEncounter).mock.calls[0];
+      expect(payload.visit).toBe(visitUuid);
+      expect(new Date(payload.encounterDatetime).getTime()).toBeGreaterThanOrEqual(new Date(startDatetime).getTime());
+      expect(new Date(payload.encounterDatetime).getTime()).toBeLessThanOrEqual(new Date(stopDatetime).getTime());
+    });
+
+    it('lets the server date the encounter while the visit is still open', async () => {
+      vi.mocked(getVisitDates).mockResolvedValue({ uuid: 'still-open-visit-uuid', startDatetime, stopDatetime: null });
+      const context = buildSubmissionContext({
+        visit: { ...openVisit, uuid: 'still-open-visit-uuid' } as never,
+      });
+
+      await submit(context);
+
+      expect(saveEncounter).toHaveBeenCalledTimes(1);
+      const [, payload] = vi.mocked(saveEncounter).mock.calls[0];
+      expect(payload.encounterDatetime).toBeUndefined();
+    });
+
+    it('does not check the visit when editing an encounter', async () => {
+      const context = buildSubmissionContext({
+        visit: { ...openVisit, uuid: 'edited-visit-uuid' } as never,
+        domainObjectValue: {
+          uuid: 'existing-encounter-uuid',
+          encounterDatetime: startDatetime,
+          encounterProviders: [],
+        } as never,
+      });
+
+      await submit(context);
+
+      expect(getVisitDates).not.toHaveBeenCalled();
+    });
   });
 });

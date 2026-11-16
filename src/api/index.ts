@@ -27,6 +27,19 @@ export function saveEncounter(abortController: AbortController, payload, encount
   });
 }
 
+/**
+ * Fetches the start and stop datetimes of a visit as the server has them now. The visit a form was
+ * opened in can have been ended since (in another tab, by another user, or by a scheduled task that
+ * closes the day's visits).
+ */
+export async function getVisitDates(visitUuid: string, abortController?: AbortController) {
+  const { data } = await openmrsFetch<{ uuid: string; startDatetime: string; stopDatetime: string | null }>(
+    `${restBaseUrl}/visit/${visitUuid}?v=custom:(uuid,startDatetime,stopDatetime)`,
+    { signal: abortController?.signal },
+  );
+  return data;
+}
+
 export async function createAttachment(patientUuid: string, encounterUUID: string, attachment: AttachmentFieldValue) {
   const formData = new FormData();
 
@@ -77,8 +90,9 @@ export async function getLatestObs(
   conceptUuid: string,
   encounterTypeUuid?: string,
 ): Promise<FHIRObsResource> {
-  let params = `patient=${patientUuid}&code=${conceptUuid}${encounterTypeUuid ? `&encounter.type=${encounterTypeUuid}` : ''
-    }`;
+  let params = `patient=${patientUuid}&code=${conceptUuid}${
+    encounterTypeUuid ? `&encounter.type=${encounterTypeUuid}` : ''
+  }`;
   // the latest obs
   params += '&_sort=-date&_count=1';
   const { data } = await openmrsFetch(`${fhirBaseUrl}/Observation?${params}`);

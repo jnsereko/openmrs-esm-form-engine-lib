@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
-import { type OpenmrsResource, showSnackbar, translateFrom } from '@openmrs/esm-framework';
+import {
+  formatDatetime,
+  type OpenmrsResource,
+  parseDate,
+  showSnackbar,
+  translateFrom,
+  type Visit,
+} from '@openmrs/esm-framework';
 import {
   getMutableSessionProps,
   hydrateRepeatField,
@@ -25,8 +32,8 @@ import { evaluateAsyncExpression, type FormNode } from '../../utils/expression-r
 import { extractErrorMessagesFromResponse } from '../../utils/error-utils';
 import { extractObsValueAndDisplay } from '../../utils/form-helper';
 import { FormProcessor, type FormProcessorContextSetters } from '../form-processor';
-import { getPreviousEncounter, saveEncounter } from '../../api';
-import { hasRendering } from '../../utils/common-utils';
+import { getPreviousEncounter, getVisitDates, saveEncounter } from '../../api';
+import { getDateWithinVisitWindow, hasRendering } from '../../utils/common-utils';
 import { isEmpty } from '../../validators/form-validator';
 import { formEngineAppName } from '../../globals';
 import { type FormContextProps } from '../../provider/form-provider';
@@ -35,6 +42,51 @@ import { useEncounterRole } from '../../hooks/useEncounterRole';
 import { usePatientPrograms } from '../../hooks/usePatientPrograms';
 import { type TOptions } from 'i18next';
 
+// Visits found ended while a form was open in them, and already shown as ended to the user
+const visitsFoundEnded = new Map<string, Visit>();
+
+/**
+ * A new encounter is saved in the visit the form was opened in. That visit can have been ended since,
+ * and the server then rejects an encounter dated "now" (Encounter.datetimeShouldBeInVisitDatesRange).
+ * So read the visit's dates again first. The first time it is found ended, reject with a warning that
+ * keeps the form open; on the next save, the encounter is saved in the ended visit, dated within it.
+ */
+async function withVisitAsItIsNow(
+  context: FormContextProps,
+  abortController: AbortController,
+  t: (key: string, defaultValue: string, options?: Omit<TOptions, 'ns' | 'defaultValue'>) => string,
+): Promise<FormContextProps> {
+  const { visit, domainObjectValue } = context;
+  if (domainObjectValue || !visit?.uuid || visit.stopDatetime) {
+    return context;
+  }
+  let endedVisit = visitsFoundEnded.get(visit.uuid);
+  if (!endedVisit) {
+    try {
+      const visitDates = await getVisitDates(visit.uuid, abortController);
+      if (!visitDates?.stopDatetime) {
+        return context;
+      }
+      endedVisit = { ...visit, ...visitDates } as Visit;
+    } catch (error) {
+      // Could not check: save as before, and the save reports any error
+      console.error(error);
+      return context;
+    }
+    visitsFoundEnded.set(visit.uuid, endedVisit);
+    return Promise.reject({
+      title: t('visitHasEnded', 'This visit has ended'),
+      subtitle: t(
+        'visitEndedSaveToSaveInIt',
+        'The visit was ended on {{stopDatetime}}. The form is kept: save it again to save it in that visit.',
+        { stopDatetime: formatDatetime(parseDate(endedVisit.stopDatetime)) },
+      ),
+      kind: 'warning',
+      isLowContrast: false,
+    });
+  }
+  return { ...context, visit: endedVisit, sessionDate: getDateWithinVisitWindow(context.sessionDate, endedVisit) };
+}
 
 function useCustomHooks(context: Partial<FormProcessorContextProps>) {
   const [isLoading, setIsLoading] = useState(true);
@@ -118,10 +170,11 @@ export class EncounterFormProcessor extends FormProcessor {
     return schema;
   }
 
-  async processSubmission(context: FormContextProps, abortController: AbortController) {
-    const { encounterRole, encounterProvider, encounterDate, encounterLocation } = getMutableSessionProps(context);
+  async processSubmission(formContext: FormContextProps, abortController: AbortController) {
     const t = (key: string, defaultValue: string, options?: Omit<TOptions, 'ns' | 'defaultValue'>) =>
       translateFrom(formEngineAppName, key, defaultValue, options);
+    const context = await withVisitAsItIsNow(formContext, abortController, t);
+    const { encounterRole, encounterProvider, encounterDate, encounterLocation } = getMutableSessionProps(context);
     const patientIdentifiers = preparePatientIdentifiers(context.formFields, encounterLocation);
     const encounter = prepareEncounter(context, encounterDate, encounterRole, encounterProvider, encounterLocation);
 
