@@ -56,17 +56,17 @@ describe.skip('bmiForAge z-score', () => {
 
     await act(async () => renderForm(null, bmiForAgeScoreTestSchema));
 
-    const bmiForAge = screen.getByRole('spinbutton', { name: /bmi for age zscore result/i });
-    const height = screen.getByRole('spinbutton', { name: /height/i });
-    const weight = screen.getByRole('spinbutton', { name: /weight/i });
+    const bmiForAge = screen.getByRole('textbox', { name: /bmi for age zscore result/i });
+    const height = screen.getByRole('textbox', { name: /height/i });
+    const weight = screen.getByRole('textbox', { name: /weight/i });
 
     await user.type(height, '100');
     await user.type(weight, '45');
     await user.tab();
 
-    expect(height).toHaveValue(100);
-    expect(weight).toHaveValue(45);
-    expect(bmiForAge).toHaveValue(4);
+    expect(height).toHaveValue('100');
+    expect(weight).toHaveValue('45');
+    expect(bmiForAge).toHaveValue('4');
   });
   function renderForm(formUUID, formJson, intent?: string) {
     return act(() => {

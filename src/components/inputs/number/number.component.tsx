@@ -1,7 +1,7 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
-import { Layer, NumberInput } from '@carbon/react';
+import { Layer, TextInput } from '@carbon/react';
 import { isEmpty } from '../../../validators/form-validator';
 import { isTrue } from '../../../utils/boolean-utils';
 import { type FormFieldInputProps } from '../../../types';
@@ -11,28 +11,57 @@ import FieldLabel from '../../field-label/field-label.component';
 import FieldValueView from '../../value/view/field-value-view.component';
 import styles from './number.scss';
 
+/** What a number field accepts as it is typed: digits, an optional leading minus, at most one dot or comma. */
+const decimalTextPattern = /^-?\d*([.,]\d*)?$/;
+
+/**
+ * The number a field's text means, a comma read as the decimal point; undefined when it holds no digit.
+ * A French-locale browser empties an `<input type="number">` on a typed dot ("36.4" was saved as 4), so
+ * the field is a text input that reads "36.4" and "36,4" alike (UVL-EMR #719).
+ */
+export function parseDecimalText(text: string): number | undefined {
+  const normalized = text.trim().replace(',', '.');
+  if (!/\d/.test(normalized)) {
+    return undefined;
+  }
+  const number = Number(normalized);
+  return isNaN(number) ? undefined : number;
+}
+
 const NumberField: React.FC<FormFieldInputProps> = ({ field, value, errors, warnings, setFieldValue }) => {
   const { t } = useTranslation();
   const { layoutType, sessionMode, workspaceLayout } = useFormProviderContext();
 
-  const numberValue = useMemo(() => {
-    if (isNaN(value)) {
-      return '';
-    }
-    return value ?? '';
-  }, [value]);
-
   const getNumericValue = useCallback(
-    (value: string | number) => (typeof value === 'undefined' || isNaN(Number(value)) ? undefined : Number(value)),
+    (value: string | number) =>
+      typeof value === 'undefined' || value === null || value === '' || isNaN(Number(value))
+        ? undefined
+        : Number(value),
     [],
   );
 
+  // What is typed, kept as typed ("36," on the way to "36,4"); the field's value is the number it means
+  const [text, setText] = useState(() => getNumericValue(value)?.toString() ?? '');
+
+  // The value changed from elsewhere (an encounter loaded, a calculated field): show it, unless the text
+  // already means it
+  useEffect(() => {
+    setText((current) => {
+      const number = getNumericValue(value);
+      return parseDecimalText(current) === number ? current : number?.toString() ?? '';
+    });
+  }, [value, getNumericValue]);
+
   const handleChange = useCallback(
-    (event, { value }) => {
-      const parsedValue = getNumericValue(value);
-      setFieldValue(isNaN(parsedValue) ? undefined : parsedValue);
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const nextText = event.target.value;
+      if (!decimalTextPattern.test(nextText.trim())) {
+        return;
+      }
+      setText(nextText);
+      setFieldValue(parseDecimalText(nextText));
     },
-    [setFieldValue, getNumericValue],
+    [setFieldValue],
   );
 
   const isInline = useMemo(() => {
@@ -57,25 +86,24 @@ const NumberField: React.FC<FormFieldInputProps> = ({ field, value, errors, warn
   ) : (
     !field.isHidden && (
       <Layer>
-        <NumberInput
+        <TextInput
           id={field.id}
           invalid={errors.length > 0}
           invalidText={errors[0]?.message}
-          label={<FieldLabel field={field} />}
+          labelText={<FieldLabel field={field} />}
           max={max}
           min={min}
           name={field.id}
-          value={numberValue}
+          value={text}
           onChange={handleChange}
-          allowEmpty={true}
+          inputMode="decimal"
+          autoComplete="off"
           size="lg"
-          hideSteppers={field.hideSteppers ?? false}
           disabled={field.isDisabled}
           readOnly={isTrue(field.readonly)}
           className={classNames(styles.controlWidthConstrained, styles.boldedLabel)}
           warn={warnings.length > 0}
           warnText={warnings[0]?.message}
-          step={field.questionOptions.step ?? 0.01}
         />
       </Layer>
     )

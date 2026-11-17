@@ -66,7 +66,7 @@ describe('Z-score helpers in a form', () => {
       await vi.mocked(loadZScoreReferences).mock.results[0].value;
     });
 
-    const height = await screen.findByRole('spinbutton', { name: /^height/i });
+    const height = await screen.findByRole('textbox', { name: /^height(?! for)/i });
     await user.clear(height);
     await user.type(height, '120');
 
@@ -80,7 +80,7 @@ describe('Z-score helpers in a form', () => {
       );
     });
 
-    expect(screen.getByRole('spinbutton', { name: /^height/i })).toHaveValue(120);
+    expect(screen.getByRole('textbox', { name: /^height(?! for)/i })).toHaveValue('120');
     expect(loadZScoreReferences).toHaveBeenCalledOnce();
   });
 
@@ -114,8 +114,8 @@ describe('Z-score helpers in a form', () => {
   it('recalculates a z-score from values the user enters', async () => {
     await act(async () => renderForm());
 
-    const height = screen.getByRole('spinbutton', { name: /^height/i });
-    const weight = screen.getByRole('spinbutton', { name: /^weight/i });
+    const height = screen.getByRole('textbox', { name: /^height(?! for)/i });
+    const weight = screen.getByRole('textbox', { name: /^weight(?! for)/i });
 
     await user.clear(height);
     await user.type(height, '120');
@@ -131,8 +131,8 @@ describe('Z-score helpers in a form', () => {
 
     await user.click(screen.getByRole('button', { name: 'Add' }));
 
-    const heights = await screen.findAllByRole('spinbutton', { name: /follow-up height/i });
-    const weights = screen.getAllByRole('spinbutton', { name: /follow-up weight/i });
+    const heights = await screen.findAllByRole('textbox', { name: /follow-up height/i });
+    const weights = screen.getAllByRole('textbox', { name: /follow-up weight/i });
     expect(heights).toHaveLength(2);
 
     await user.type(heights[1], '140');

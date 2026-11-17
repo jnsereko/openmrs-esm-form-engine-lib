@@ -57,15 +57,15 @@ describe.skip('weightForHeight z-score', () => {
     await act(async () => renderForm(null, weightForHeightZscoreTestSchema));
 
     const weightForHeightZscore = screen.getByRole('textbox', { name: /weight for height zscore result/i });
-    const height = screen.getByRole('spinbutton', { name: /height/i });
-    const weight = screen.getByRole('spinbutton', { name: /weight/i });
+    const height = screen.getByRole('textbox', { name: /height/i });
+    const weight = screen.getByRole('textbox', { name: /weight/i });
 
     await user.type(height, '110');
     await user.type(weight, '45');
     await user.tab();
 
-    expect(weight).toHaveValue(45);
-    expect(height).toHaveValue(110);
+    expect(weight).toHaveValue('45');
+    expect(height).toHaveValue('110');
     expect(weightForHeightZscore).toHaveValue('4');
   });
 

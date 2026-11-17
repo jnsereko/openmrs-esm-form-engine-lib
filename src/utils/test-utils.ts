@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 
 export async function findNumberInput(screen, name: string): Promise<HTMLInputElement> {
-  return await screen.findByRole('spinbutton', { name });
+  return await screen.findByRole('textbox', { name });
 }
 
 export async function findTextOrDateInput(screen, name: string): Promise<HTMLInputElement> {

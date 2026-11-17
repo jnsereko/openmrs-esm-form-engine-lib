@@ -65,17 +65,17 @@ describe.skip('heightForAge z-score', () => {
 
     await act(async () => renderForm(null, heightForAgeZscoreTestSchema));
 
-    const heightForAgeZscore = screen.getByRole('spinbutton', { name: /height for age zscore result/i });
-    const height = screen.getByRole('spinbutton', { name: /^height \*$/i });
-    const weight = screen.getByRole('spinbutton', { name: /weight/i });
+    const heightForAgeZscore = screen.getByRole('textbox', { name: /height for age zscore result/i });
+    const height = screen.getByRole('textbox', { name: /^height \*$/i });
+    const weight = screen.getByRole('textbox', { name: /weight/i });
 
     await user.type(height, '150');
     await user.type(weight, '45');
     await user.tab();
 
-    expect(height).toHaveValue(150);
-    expect(weight).toHaveValue(45);
-    expect(heightForAgeZscore).toHaveValue(4);
+    expect(height).toHaveValue('150');
+    expect(weight).toHaveValue('45');
+    expect(heightForAgeZscore).toHaveValue('4');
   });
 
   function renderForm(formUUID, formJson, intent?: string) {

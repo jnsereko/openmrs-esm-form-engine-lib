@@ -626,7 +626,7 @@ describe('Form engine component', () => {
       await act(async () => renderForm(null, postSubmissionTestForm));
 
       const drugSensitiveProgramField = screen.getByRole('radio', { name: /drug-susceptible \(DS\) tb program/i });
-      const treatmentNumber = screen.getByRole('spinbutton', { name: /ds tb treatment number/i });
+      const treatmentNumber = screen.getByRole('textbox', { name: /ds tb treatment number/i });
 
       await user.click(drugSensitiveProgramField);
       await user.click(screen.getByRole('textbox', { name: /date enrolled in tuberculosis \(TB\) care/i }));
@@ -656,11 +656,11 @@ describe('Form engine component', () => {
     it('should limit number of repeatable obs groups based on configured repeat limit', async () => {
       await act(async () => renderForm(null, labourAndDeliveryTestForm));
 
-      const birthCount = screen.getByRole('spinbutton', { name: /number of babies born from this pregnancy/i });
+      const birthCount = screen.getByRole('textbox', { name: /number of babies born from this pregnancy/i });
       expect(birthCount).toBeInTheDocument();
 
       await user.type(birthCount, '2');
-      expect(birthCount).toHaveValue(2);
+      expect(birthCount).toHaveValue('2');
 
       // Male radio button in 'sex at birth' field
       const maleSexLabel = screen.getByRole('radio', { name: /^male$/i });
@@ -697,7 +697,7 @@ describe('Form engine component', () => {
       await act(async () => renderForm(null, filterAnswerOptionsTestForm));
 
       const recommendationDropdown = screen.getByRole('combobox', { name: /Testing Recommendations/i });
-      const testCountField = screen.getByRole('spinbutton', { name: 'How many times have you tested in the past?' });
+      const testCountField = screen.getByRole('textbox', { name: 'How many times have you tested in the past?' });
 
       await user.click(recommendationDropdown);
 
@@ -710,7 +710,7 @@ describe('Form engine component', () => {
       await user.type(testCountField, '6');
       await user.click(recommendationDropdown);
 
-      expect(testCountField).toHaveValue(6);
+      expect(testCountField).toHaveValue('6');
       expect(screen.queryByRole('option', { name: /Perfect testing/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('option', { name: /Minimal testing/i })).not.toBeInTheDocument();
       expect(screen.getByRole('option', { name: /Un-decisive/i })).toBeInTheDocument();
@@ -824,8 +824,8 @@ describe('Form engine component', () => {
       await user.type(heightField, '150');
       await user.tab();
 
-      expect(heightField).toHaveValue(150);
-      expect(weightField).toHaveValue(50);
+      expect(heightField).toHaveValue('150');
+      expect(weightField).toHaveValue('50');
       expect(bmiField).toHaveValue('22.2');
 
       await user.click(screen.getByRole('button', { name: /save/i }));
@@ -841,15 +841,15 @@ describe('Form engine component', () => {
       await act(async () => renderForm(null, bsaForm));
 
       const bsaField = screen.getByRole('textbox', { name: /bsa/i });
-      const heightField = screen.getByRole('spinbutton', { name: /height/i });
-      const weightField = screen.getByRole('spinbutton', { name: /weight/i });
+      const heightField = screen.getByRole('textbox', { name: /height/i });
+      const weightField = screen.getByRole('textbox', { name: /weight/i });
 
       await user.type(heightField, '190.5');
       await user.type(weightField, '95');
       await user.tab();
 
-      expect(heightField).toHaveValue(190.5);
-      expect(weightField).toHaveValue(95);
+      expect(heightField).toHaveValue('190.5');
+      expect(weightField).toHaveValue('95');
       expect(bsaField).toHaveValue('2.24');
 
       await user.click(screen.getByRole('button', { name: /save/i }));
@@ -894,7 +894,7 @@ describe('Form engine component', () => {
       let artStartDateField = screen.getByRole('textbox', {
         name: /antiretroviral treatment start date/i,
       });
-      let monthsOnArtField = screen.getByRole('spinbutton', {
+      let monthsOnArtField = screen.getByRole('textbox', {
         name: /months on art/i,
       });
 
@@ -905,13 +905,13 @@ describe('Form engine component', () => {
       await user.paste('2022-02-05');
       await user.tab();
 
-      expect(monthsOnArtField).toHaveValue(7);
+      expect(monthsOnArtField).toHaveValue('7');
     });
 
     it('should evaluate viral load status', async () => {
       renderForm(null, viralLoadStatusForm);
 
-      let viralLoadCountField = await screen.findByRole('spinbutton', {
+      let viralLoadCountField = await screen.findByRole('textbox', {
         name: /viral load count/i,
       });
       let suppressedField = await screen.findByRole('radio', {
@@ -924,7 +924,7 @@ describe('Form engine component', () => {
       await user.type(viralLoadCountField, '30');
       await user.tab();
 
-      expect(viralLoadCountField).toHaveValue(30);
+      expect(viralLoadCountField).toHaveValue('30');
       expect(suppressedField).toBeChecked();
       expect(unsuppressedField).not.toBeChecked();
     });
@@ -953,11 +953,11 @@ describe('Form engine component', () => {
     it('should load initial value from external arbitrary data source', async () => {
       await act(async () => renderForm(null, externalDataSourceForm));
 
-      const bodyWeightField = screen.getByRole('spinbutton', {
+      const bodyWeightField = screen.getByRole('textbox', {
         name: /body weight/i,
       });
 
-      expect(bodyWeightField).toHaveValue(60);
+      expect(bodyWeightField).toHaveValue('60');
     });
 
     it('should evaluate next visit date', async () => {
@@ -969,7 +969,7 @@ describe('Form engine component', () => {
       const nextVisitDateField = screen.getByRole('textbox', {
         name: /next visit date/i,
       });
-      const arvDispensedInDaysField = screen.getByRole('spinbutton', {
+      const arvDispensedInDaysField = screen.getByRole('textbox', {
         name: /arv dispensed in days/i,
       });
 
@@ -981,7 +981,7 @@ describe('Form engine component', () => {
       await user.type(arvDispensedInDaysField, '120');
       await user.tab();
 
-      expect(arvDispensedInDaysField).toHaveValue(120);
+      expect(arvDispensedInDaysField).toHaveValue('120');
       expect(nextVisitDateField).toHaveValue('03/11/2022');
     });
   });
@@ -1035,7 +1035,7 @@ describe('Form engine component', () => {
 
       // Check that dependent name and age are still hidden
       const hiddenDependentNameInput = screen.queryByRole('textbox', { name: /dependent name/i });
-      const hiddenDependentAgeInput = screen.queryByRole('spinbutton', { name: /dependent age/i });
+      const hiddenDependentAgeInput = screen.queryByRole('textbox', { name: /dependent age/i });
       expect(hiddenDependentNameInput).not.toBeInTheDocument();
       expect(hiddenDependentAgeInput).not.toBeInTheDocument();
 
@@ -1048,7 +1048,7 @@ describe('Form engine component', () => {
 
       // Check that dependent name and age are now visible
       const dependentNameInput = screen.getByRole('textbox', { name: /dependent name/i });
-      const dependentAgeInput = screen.getByRole('spinbutton', { name: /dependent age/i });
+      const dependentAgeInput = screen.getByRole('textbox', { name: /dependent age/i });
 
       expect(dependentNameInput).toBeInTheDocument();
       expect(dependentAgeInput).toBeInTheDocument();
@@ -1395,7 +1395,7 @@ describe('Form engine component', () => {
       await user.click(testSelector);
       await user.click(await screen.findByRole('option', { name: /haemoglobin/i }));
 
-      const haemoglobinInput = await screen.findByRole('spinbutton', { name: /haemoglobin/i });
+      const haemoglobinInput = await screen.findByRole('textbox', { name: /^haemoglobin/i });
       await user.type(haemoglobinInput, '12');
 
       const dateInput = await screen.findByRole('textbox', { name: /date for haemoglobin/i });
@@ -1423,7 +1423,7 @@ describe('Form engine component', () => {
       await user.click(testSelector);
       await user.click(await screen.findByRole('option', { name: /haemoglobin/i }));
 
-      const haemoglobinInput = await screen.findByRole('spinbutton', { name: /haemoglobin/i });
+      const haemoglobinInput = await screen.findByRole('textbox', { name: /^haemoglobin/i });
       await user.type(haemoglobinInput, '12');
 
       const commentInput = await screen.findByRole('textbox', { name: /comment for haemoglobin/i });
