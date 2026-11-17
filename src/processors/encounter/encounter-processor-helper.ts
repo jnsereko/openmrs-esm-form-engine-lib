@@ -197,8 +197,13 @@ export function getMutableSessionProps(context: FormContextProps): MutableSessio
   const { defaultEncounterRole } = customDependencies;
   const encounterRole =
     formFields.find((field) => field.type === 'encounterRole')?.meta.submission?.newValue || defaultEncounterRole?.uuid;
+  // An edited encounter keeps its providers unless the form's provider field was changed: the field shows the
+  // encounter's latest provider, so falling back to the user editing it would add them as a second provider.
+  const providerField = formFields.find((field) => field.type === 'encounterProvider');
   const encounterProvider =
-    formFields.find((field) => field.type === 'encounterProvider')?.meta.submission?.newValue || currentProvider.uuid;
+    providerField?.meta.submission?.newValue ||
+    (providerField && encounter?.encounterProviders?.at(-1)?.provider?.uuid) ||
+    currentProvider.uuid;
   const explicitEncounterDate = formFields.find((field) => field.type === 'encounterDatetime')?.meta.submission
     ?.newValue as Date | undefined;
   // Stopped visits need an explicit datetime because the backend defaults omitted

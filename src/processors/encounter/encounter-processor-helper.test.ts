@@ -148,6 +148,40 @@ describe('getMutableSessionProps', () => {
     });
   });
 
+  describe('editing an encounter (UVL-EMR #759)', () => {
+    const editedEncounter = {
+      uuid: 'encounter-uuid',
+      encounterProviders: [
+        { uuid: 'ep-1', provider: { uuid: 'first-provider-uuid' } },
+        { uuid: 'ep-2', provider: { uuid: 'encounter-provider-uuid' } },
+      ],
+    };
+
+    it("keeps the encounter's provider when the provider field is left as it is", () => {
+      const context = buildContext({
+        domainObjectValue: editedEncounter,
+        formFields: [buildField({ id: 'provider', type: 'encounterProvider' })],
+      });
+
+      expect(getMutableSessionProps(context).encounterProvider).toBe('encounter-provider-uuid');
+    });
+
+    it('takes the provider picked in the field', () => {
+      const context = buildContext({
+        domainObjectValue: editedEncounter,
+        formFields: [withSubmission(buildField({ id: 'provider', type: 'encounterProvider' }), 'picked-provider-uuid')],
+      });
+
+      expect(getMutableSessionProps(context).encounterProvider).toBe('picked-provider-uuid');
+    });
+
+    it('adds the user editing it when the form has no provider field', () => {
+      const context = buildContext({ domainObjectValue: editedEncounter });
+
+      expect(getMutableSessionProps(context).encounterProvider).toBe('current-provider-uuid');
+    });
+  });
+
   it('should fall back to the session defaults when a submitted value is present but falsy', () => {
     // the fallbacks are `||`, not `??`, so an EMPTY STRING submission falls back
     // rather than clearing the provider/role/location. All three use `''` on
@@ -188,7 +222,9 @@ describe('getMutableSessionProps', () => {
     });
 
     it('falls back to the session location without a visit or a visit location', () => {
-      expect(getMutableSessionProps(buildContext({ visit: undefined })).encounterLocation).toBe('session-location-uuid');
+      expect(getMutableSessionProps(buildContext({ visit: undefined })).encounterLocation).toBe(
+        'session-location-uuid',
+      );
       expect(getMutableSessionProps(buildContext({ visit: visitFixture() })).encounterLocation).toBe(
         'session-location-uuid',
       );

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { debounce } from 'lodash-es';
 import { ComboBox, DropdownSkeleton, Layer, InlineLoading } from '@carbon/react';
 import { useTranslation } from 'react-i18next';
@@ -45,7 +45,17 @@ const UiSelectExtended: React.FC<FormFieldInputProps> = ({ field, errors, warnin
     return false;
   }, [sessionMode, field.readonly, field.inlineRendering, layoutType, workspaceLayout]);
 
-  const selectedItem = useMemo(() => items.find((item) => item.uuid == value) || null, [items, value]);
+  // The selected entry is remembered apart from the list: a search that does not return it (or returns
+  // nothing) empties the list without unselecting it.
+  const lastSelectedItem = useRef(null);
+  const selectedItem = useMemo(() => {
+    const item = items.find((item) => item.uuid == value);
+    if (item) {
+      lastSelectedItem.current = item;
+      return item;
+    }
+    return value && lastSelectedItem.current?.uuid == value ? lastSelectedItem.current : null;
+  }, [items, value]);
 
   const searchGeneration = useRef(0);
 
@@ -71,6 +81,9 @@ const UiSelectExtended: React.FC<FormFieldInputProps> = ({ field, errors, warnin
                 }
                 return newItems;
               });
+            } else {
+              // Nothing matches: an empty list, not the previous search's results to pick by mistake.
+              setItems([]);
             }
             setIsSearching(false);
           })
@@ -83,13 +96,6 @@ const UiSelectExtended: React.FC<FormFieldInputProps> = ({ field, errors, warnin
           });
       }, 300),
     [config, field.id, getValues],
-  );
-
-  const searchTermHasMatchingItem = useCallback(
-    (searchTerm: string) => {
-      return items.some((item) => item.display?.toLowerCase().includes(searchTerm.toLowerCase()));
-    },
-    [items],
   );
 
   useEffect(() => {
@@ -133,7 +139,9 @@ const UiSelectExtended: React.FC<FormFieldInputProps> = ({ field, errors, warnin
   }, [dataSource, config, dataSourceDependentValue]);
 
   useEffect(() => {
-    if (dataSource && isSearchable && !isEmpty(searchTerm) && !searchTermHasMatchingItem(searchTerm)) {
+    // Every typed term goes to the server: a loaded entry that contains it (the selected one, the
+    // previous results) is not every entry that does.
+    if (dataSource && isSearchable && !isEmpty(searchTerm)) {
       debouncedSearch(searchTerm, dataSource);
     } else {
       setIsSearching(false);
@@ -146,7 +154,7 @@ const UiSelectExtended: React.FC<FormFieldInputProps> = ({ field, errors, warnin
 
   useEffect(() => {
     let ignore = false;
-    if (value && !isDirty && dataSource && isSearchable && !items.length) {
+    if (value && !isDirty && dataSource && isSearchable && !selectedItem) {
       // For search-based instances, fetch the initial item to resolve its display property
       setIsLoading(true);
       dataSource
@@ -168,7 +176,7 @@ const UiSelectExtended: React.FC<FormFieldInputProps> = ({ field, errors, warnin
     return () => {
       ignore = true;
     };
-  }, [value, isDirty, dataSource, isSearchable, items, config]);
+  }, [value, isDirty, dataSource, isSearchable, selectedItem, config]);
 
   if (isLoading) {
     return <DropdownSkeleton />;
@@ -177,7 +185,7 @@ const UiSelectExtended: React.FC<FormFieldInputProps> = ({ field, errors, warnin
   return isViewMode(sessionMode) || isTrue(field.readonly) ? (
     <FieldValueView
       label={t(field.label)}
-      value={value ? getItemText(items.find((item) => item.uuid == value)) : value}
+      value={value ? getItemText(selectedItem) : value}
       conceptName={field.meta?.concept?.display}
       isInline={isInline}
     />
@@ -219,7 +227,8 @@ const UiSelectExtended: React.FC<FormFieldInputProps> = ({ field, errors, warnin
                 return;
               }
               if (field.questionOptions.isSearchable) {
-                setSearchTerm(value);
+                // The input showing the selected entry's text (set by the combobox, not typed) is no search.
+                setSearchTerm(selectedItem && value === getItemText(selectedItem) ? '' : value);
               }
             }}
             onBlur={(event) => {

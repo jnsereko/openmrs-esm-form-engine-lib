@@ -218,6 +218,65 @@ describe('search request lifetime', () => {
   });
 });
 
+describe('search that the selected entry or earlier results match (UVL-EMR #759)', () => {
+  it('searches the server even when the selected entry contains the typed text', async () => {
+    vi.mocked(datasource.fetchSingleItem).mockResolvedValue({ uuid: 'dusenge', display: 'Pacifique Dusenge' });
+    fetchData.mockResolvedValue([
+      { uuid: 'gahungu', display: 'Pacifique Gahungu' },
+      { uuid: 'dusenge', display: 'Pacifique Dusenge' },
+    ]);
+    await renderSearch('dusenge');
+
+    type('Pacifique');
+    await advance(300);
+
+    expect(fetchData).toHaveBeenCalledExactlyOnceWith('Pacifique', { tag: 'initial' });
+    expect(screen.getByText('Pacifique Gahungu')).toBeInTheDocument();
+  });
+
+  it('searches the server even when an earlier result contains the typed text', async () => {
+    fetchData.mockResolvedValueOnce([{ uuid: 'gahungu', display: 'Pacifique Gahungu' }]).mockResolvedValueOnce([
+      { uuid: 'gahungu', display: 'Pacifique Gahungu' },
+      { uuid: 'dusenge', display: 'Pacifique Dusenge' },
+    ]);
+    await renderSearch();
+
+    type('Pacifique G');
+    await advance(300);
+    type('Pacifique');
+    await advance(300);
+
+    expect(fetchData).toHaveBeenCalledTimes(2);
+    expect(screen.getByText('Pacifique Dusenge')).toBeInTheDocument();
+  });
+
+  it('empties the list when a search finds nothing, and keeps the selected value', async () => {
+    fetchData
+      .mockResolvedValueOnce([{ uuid: 'sebastien', display: 'Sebastien Nsengumuremyi' }])
+      .mockResolvedValueOnce([]);
+    await renderSearch();
+
+    type('Sebastien');
+    await advance(300);
+    fireEvent.click(screen.getByRole('option', { name: 'Sebastien Nsengumuremyi' }));
+    type('zzqx');
+    await advance(300);
+
+    expect(fetchData).toHaveBeenLastCalledWith('zzqx', { tag: 'initial' });
+    expect(screen.queryByRole('option')).not.toBeInTheDocument();
+    expect(setFieldValueSpy).toHaveBeenLastCalledWith('sebastien');
+  });
+
+  it('does not search for the selected entry shown in the input', async () => {
+    vi.mocked(datasource.fetchSingleItem).mockResolvedValue({ uuid: 'dusenge', display: 'Pacifique Dusenge' });
+    await renderSearch('dusenge');
+    await advance(300);
+
+    expect(screen.getByRole('combobox')).toHaveValue('Pacifique Dusenge');
+    expect(fetchData).not.toHaveBeenCalled();
+  });
+});
+
 describe('text typed but not picked from the list (UVL-EMR #725)', () => {
   function leave() {
     fireEvent.blur(screen.getByRole('combobox'));
