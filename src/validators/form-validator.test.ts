@@ -223,3 +223,39 @@ describe('FieldValidator - validate', () => {
     ]);
   });
 });
+
+describe('FieldValidator - text not picked from a search list (UVL-EMR #725)', () => {
+  const diagnosisField = (meta: FormField['meta'], required = false): FormField => ({
+    label: 'Confirmed Diagnosis',
+    type: 'diagnosis',
+    questionOptions: { rendering: 'ui-select-extended', isSearchable: true },
+    meta,
+    isRequired: required,
+    id: 'confirmedDiagnosis',
+  });
+
+  it('fails the field and names the text typed but not picked', () => {
+    expect(FieldValidator.validate(diagnosisField({ textNotPickedFromList: ' Conjonctivite ' }), null)).toEqual([
+      {
+        resultType: 'error',
+        errCode: 'field.notPickedFromList',
+        message: '"Conjonctivite" is not saved: pick an entry from the list, or clear the field',
+      },
+    ]);
+  });
+
+  it('reports the unpicked text rather than "mandatory" on a required field', () => {
+    const [result] = FieldValidator.validate(diagnosisField({ textNotPickedFromList: 'Conjonctivite' }, true), null);
+    expect(result.errCode).toBe('field.notPickedFromList');
+  });
+
+  it('fails even when an entry was picked before the text was typed', () => {
+    const [result] = FieldValidator.validate(diagnosisField({ textNotPickedFromList: 'Conj' }), 'malaria-uuid');
+    expect(result.errCode).toBe('field.notPickedFromList');
+  });
+
+  it('passes once the text is cleared', () => {
+    expect(FieldValidator.validate(diagnosisField({ textNotPickedFromList: undefined }), 'malaria-uuid')).toEqual([]);
+    expect(FieldValidator.validate(diagnosisField({ textNotPickedFromList: '   ' }), null)).toEqual([]);
+  });
+});

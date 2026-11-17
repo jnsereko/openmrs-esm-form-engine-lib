@@ -10,7 +10,7 @@ import { isEmpty } from '../../../validators/form-validator';
 import { isTrue } from '../../../utils/boolean-utils';
 import { isViewMode } from '../../../utils/common-utils';
 import { shouldUseInlineLayout } from '../../../utils/form-helper';
-import { type DataSource, type FormFieldInputProps } from '../../../types';
+import { type DataSource, type FormField, type FormFieldInputProps } from '../../../types';
 import { useFormProviderContext } from '../../../provider/form-provider';
 import useDataSourceDependentValue from '../../../hooks/useDataSourceDependentValue';
 import FieldLabel from '../../field-label/field-label.component';
@@ -203,6 +203,7 @@ const UiSelectExtended: React.FC<FormFieldInputProps> = ({ field, errors, warnin
               searchGeneration.current++;
               setIsSearching(false);
               isProcessingSelection.current = true;
+              setTextNotPickedFromList(field, undefined);
               setFieldValue(selectedItem?.uuid);
             }}
             disabled={field.isDisabled}
@@ -225,8 +226,19 @@ const UiSelectExtended: React.FC<FormFieldInputProps> = ({ field, errors, warnin
               // Notes:
               // There is an issue with the onBlur event where the value is not persistently set to null when the user clears the input field.
               // This is a workaround to ensure that the value is set to null when the user clears the input field.
-              if (!event.target.value) {
+              const typedText = event.target.value;
+              if (!typedText) {
+                setTextNotPickedFromList(field, undefined);
                 setFieldValue(null);
+              } else if (typedText !== getItemText(selectedItem)) {
+                // Text typed without picking an entry: the field keeps its value (none, or the entry picked
+                // before) and the combobox empties the input after this handler. Flag the text, and set the
+                // value again so the field is validated: the error names the text and blocks the save.
+                setTextNotPickedFromList(field, typedText);
+                setFieldValue(value);
+              } else if (field.meta?.textNotPickedFromList) {
+                setTextNotPickedFromList(field, undefined);
+                setFieldValue(value);
               }
             }}
           />
@@ -238,6 +250,17 @@ const UiSelectExtended: React.FC<FormFieldInputProps> = ({ field, errors, warnin
 };
 
 export default UiSelectExtended;
+
+/**
+ * Records on the field the text typed in it that was not picked from the list, or clears it. The
+ * `form_field` validator fails the field while it is set.
+ */
+export function setTextNotPickedFromList(field: FormField, text: string | undefined) {
+  if (!field.meta) {
+    field.meta = {};
+  }
+  field.meta.textNotPickedFromList = text || undefined;
+}
 
 export function getItemText(item?: { code?: string; display?: string }): string {
   return item?.code ? `${item.code} ${item.display}` : item?.display ?? '';

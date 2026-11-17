@@ -5,6 +5,7 @@ import { formEngineAppName } from '../globals';
 import { formatDecimal } from '../utils/decimal-format';
 export const fieldRequiredErrCode = 'field.required';
 export const fieldOutOfBoundErrCode = 'field.outOfBound';
+export const fieldNotPickedFromListErrCode = 'field.notPickedFromList';
 
 /**
  * Translates a validation message. The English text is the fallback, so a locale bundle
@@ -22,6 +23,18 @@ export const FieldValidator: FormFieldValidator = {
   validate: (field: FormField, value: any) => {
     if (field.meta?.submission?.unspecified) {
       return [];
+    }
+    // A search list keeps only an entry picked from it. Text typed without picking one is never
+    // saved, so it blocks the save instead of disappearing (set by the ui-select-extended input).
+    if (!isEmpty(field.meta?.textNotPickedFromList)) {
+      return addError(
+        fieldNotPickedFromListErrCode,
+        translateValidationMessage(
+          'textNotPickedFromList',
+          '"{{- text}}" is not saved: pick an entry from the list, or clear the field',
+          { text: field.meta.textNotPickedFromList.trim() },
+        ),
+      );
     }
     if (isEmpty(value) && field.isRequired) {
       if (typeof field.required === 'object' && field.required.type === 'conditionalRequired' && field.isRequired) {

@@ -19,6 +19,8 @@ const datasource: DataSource<OpenmrsResource> = {
   toUuidAndDisplay: (item) => item,
 };
 
+const setFieldValueSpy = vi.fn();
+
 function Connected({ field }: { field: FormField }) {
   const { methods } = useFormProviderContext();
 
@@ -28,7 +30,10 @@ function Connected({ field }: { field: FormField }) {
       value={null}
       errors={[]}
       warnings={[]}
-      setFieldValue={(value) => methods.setValue(field.id, value, { shouldDirty: true })}
+      setFieldValue={(value) => {
+        setFieldValueSpy(value);
+        methods.setValue(field.id, value, { shouldDirty: true });
+      }}
     />
   );
 }
@@ -64,6 +69,7 @@ async function advance(ms: number) {
 beforeEach(() => {
   vi.useFakeTimers();
   fetchData.mockReset().mockResolvedValue([]);
+  setFieldValueSpy.mockReset();
   vi.spyOn(registry, 'getRegisteredDataSource').mockResolvedValue(datasource);
 });
 
@@ -209,5 +215,76 @@ describe('search request lifetime', () => {
 
     expect(fetchData).toHaveBeenCalledExactlyOnceWith('ma', { tag: 'initial' });
     expect(screen.getByRole('combobox')).toHaveValue('Malaria');
+  });
+});
+
+describe('text typed but not picked from the list (UVL-EMR #725)', () => {
+  function leave() {
+    fireEvent.blur(screen.getByRole('combobox'));
+  }
+
+  it('flags the text on the field when it is left without picking an entry', async () => {
+    const { field } = await renderSearch();
+
+    type('Conjonctivite');
+    await advance(300);
+    leave();
+
+    expect(field.meta.textNotPickedFromList).toBe('Conjonctivite');
+    // set again to the value it had (empty here), so the field is validated and the error shows before the save
+    expect(setFieldValueSpy).toHaveBeenLastCalledWith('');
+  });
+
+  it('flags a label typed in full but not picked', async () => {
+    fetchData.mockResolvedValue([{ uuid: 'malaria', display: 'Malaria' }]);
+    const { field } = await renderSearch();
+
+    type('Malaria');
+    await advance(300);
+    leave();
+
+    expect(field.meta.textNotPickedFromList).toBe('Malaria');
+  });
+
+  it('clears the flag when an entry is picked', async () => {
+    fetchData.mockResolvedValue([{ uuid: 'malaria', display: 'Malaria' }]);
+    const { field } = await renderSearch();
+
+    type('Malx');
+    await advance(300);
+    leave();
+    expect(field.meta.textNotPickedFromList).toBe('Malx');
+
+    type('ma');
+    await advance(300);
+    fireEvent.click(screen.getByRole('option', { name: 'Malaria' }));
+
+    expect(field.meta.textNotPickedFromList).toBeUndefined();
+    expect(setFieldValueSpy).toHaveBeenLastCalledWith('malaria');
+  });
+
+  it('clears the flag and the value when the field is left empty', async () => {
+    const { field } = await renderSearch();
+
+    type('Conjonctivite');
+    await advance(300);
+    leave();
+    type('');
+    leave();
+
+    expect(field.meta.textNotPickedFromList).toBeUndefined();
+    expect(setFieldValueSpy).toHaveBeenLastCalledWith(null);
+  });
+
+  it('flags nothing when the input shows the picked entry', async () => {
+    fetchData.mockResolvedValue([{ uuid: 'malaria', display: 'Malaria' }]);
+    const { field } = await renderSearch();
+
+    type('ma');
+    await advance(300);
+    fireEvent.click(screen.getByRole('option', { name: 'Malaria' }));
+    leave();
+
+    expect(field.meta.textNotPickedFromList).toBeUndefined();
   });
 });

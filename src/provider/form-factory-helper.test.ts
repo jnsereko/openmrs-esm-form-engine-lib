@@ -51,6 +51,19 @@ describe('validateForm', () => {
     expect(context.updateFormField).toHaveBeenCalledWith(field);
   });
 
+  it('fails a search field holding text that was typed but not picked from its list (UVL-EMR #725)', () => {
+    const field = buildField({
+      id: 'confirmedDiagnosis',
+      type: 'diagnosis',
+      questionOptions: { rendering: 'ui-select-extended', isSearchable: true },
+    });
+    field.meta.textNotPickedFromList = 'Conjonctivite';
+    const context = buildContext([field], { confirmedDiagnosis: null });
+
+    expect(getInvalidFields(context)).toEqual([field]);
+    expect(field.meta.submission.errors).toEqual([expect.objectContaining({ errCode: 'field.notPickedFromList' })]);
+  });
+
   it('merges the errors into any submission already on the field', () => {
     const field = buildField({ id: 'note', isRequired: true });
     field.meta.submission = { newValue: { value: 'stale' }, voidedValue: null };
