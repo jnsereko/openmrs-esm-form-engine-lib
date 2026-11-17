@@ -53,8 +53,10 @@ export const FieldValidator: FormFieldValidator = {
       return textInputLengthValidator(minLength, maxLength, value?.length) ?? [];
     }
     if (field.questionOptions.rendering === 'number') {
-      const min = Number(field.questionOptions.min);
-      const max = Number(field.questionOptions.max);
+      // The server refuses a value outside the concept's absolute limits (HTTP 400 on save), so
+      // they bound the field too; the stricter of the form's limit and the concept's wins.
+      const min = stricterLimit(field.questionOptions.min, field.meta?.concept?.lowAbsolute, Math.max);
+      const max = stricterLimit(field.questionOptions.max, field.meta?.concept?.hiAbsolute, Math.min);
       const disallowDecimals = field.questionOptions.disallowDecimals || field.meta?.concept?.allowDecimal;
       if (isEmpty(value)) return [];
       if (disallowDecimals && !Number.isInteger(value)) {
@@ -70,6 +72,17 @@ export const FieldValidator: FormFieldValidator = {
     return [];
   },
 };
+
+/**
+ * The stricter of the form's limit and the concept's (`pick` is Math.min for a maximum, Math.max for
+ * a minimum); NaN when neither is set. The form's limit is read as before, with Number().
+ */
+function stricterLimit(formLimit: unknown, conceptLimit: unknown, pick: (a: number, b: number) => number): number {
+  const limits = [Number(formLimit), typeof conceptLimit === 'number' ? conceptLimit : NaN].filter(
+    (limit) => !Number.isNaN(limit),
+  );
+  return limits.length ? limits.reduce((a, b) => pick(a, b)) : NaN;
+}
 
 export function numberInputRangeValidator(min: number, max: number, inputValue: number) {
   if (!Number.isNaN(min) && inputValue < min) {

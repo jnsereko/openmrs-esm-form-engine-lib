@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
-import { showSnackbar } from '@openmrs/esm-framework';
+import { showSnackbar, translateFrom } from '@openmrs/esm-framework';
 import { extractErrorMessagesFromResponse, reportError } from './error-utils';
+import { withEnglishTranslationFallbacks } from '../test-support';
+
+withEnglishTranslationFallbacks();
 
 describe('extractErrorMessagesFromResponse', () => {
   it('returns the top-level REST error message when there are no field or global errors', () => {
@@ -61,6 +64,57 @@ describe('extractErrorMessagesFromResponse', () => {
     // deliberate, visible behavior change.
     const error = { responseBody: { error: { globalErrors: [] } } };
     expect(() => extractErrorMessagesFromResponse(error)).toThrow(TypeError);
+  });
+});
+
+describe('extractErrorMessagesFromResponse - server range codes left untranslated (UVL-EMR #751)', () => {
+  const outOfRange = (code: string, message = code) => ({
+    responseBody: {
+      error: {
+        message: 'Invalid Submission',
+        code: 'webservices.rest.error.invalid.submission',
+        globalErrors: [],
+        fieldErrors: { valueNumeric: [{ code, message }] },
+      },
+    },
+  });
+
+  it('replaces error.value.outOfRange.high with a readable message, never the raw key', () => {
+    expect(extractErrorMessagesFromResponse(outOfRange('error.value.outOfRange.high'))).toEqual([
+      'A value is above the highest accepted for its question: check the numbers entered in the form',
+    ]);
+  });
+
+  it('replaces error.value.outOfRange.low the same way', () => {
+    expect(extractErrorMessagesFromResponse(outOfRange('error.value.outOfRange.low'))).toEqual([
+      'A value is below the lowest accepted for its question: check the numbers entered in the form',
+    ]);
+  });
+
+  it('looks the message up in the form engine translations', () => {
+    extractErrorMessagesFromResponse(outOfRange('error.value.outOfRange.high'));
+    expect(translateFrom).toHaveBeenCalledWith(
+      '@openmrs/esm-form-engine-app',
+      'valueAboveAcceptedMaximum',
+      'A value is above the highest accepted for its question: check the numbers entered in the form',
+      undefined,
+    );
+  });
+
+  it('keeps a message the server did translate', () => {
+    const translated = 'La valeur saisie est supérieure au maximum attendu 47.0';
+    expect(extractErrorMessagesFromResponse(outOfRange('error.value.outOfRange.high', translated))).toEqual([
+      translated,
+    ]);
+  });
+
+  it('maps the same codes in global errors', () => {
+    const error = {
+      responseBody: { error: { globalErrors: [{ code: 'error.outOfRange.high', message: 'error.outOfRange.high' }] } },
+    };
+    expect(extractErrorMessagesFromResponse(error)).toEqual([
+      'A value is above the highest accepted for its question: check the numbers entered in the form',
+    ]);
   });
 });
 

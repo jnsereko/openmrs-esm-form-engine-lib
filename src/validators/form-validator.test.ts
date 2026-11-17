@@ -259,3 +259,48 @@ describe('FieldValidator - text not picked from a search list (UVL-EMR #725)', (
     expect(FieldValidator.validate(diagnosisField({ textNotPickedFromList: '   ' }), null)).toEqual([]);
   });
 });
+
+describe("FieldValidator - the concept's absolute limits (UVL-EMR #751)", () => {
+  const temperatureField = (
+    concept: { hiAbsolute?: number | null; lowAbsolute?: number | null },
+    limits: { min?: string; max?: string } = {},
+  ): FormField => ({
+    label: 'Temperature (°C)',
+    type: 'obs',
+    questionOptions: { rendering: 'number', concept: 'temperature-concept-uuid', ...limits },
+    meta: { concept: { uuid: 'temperature-concept-uuid', display: 'Temperature (C)', ...concept } },
+    id: 'temperature',
+  });
+
+  it('fails a value above hiAbsolute when the form sets no max, naming the limit', () => {
+    expect(FieldValidator.validate(temperatureField({ hiAbsolute: 47, lowAbsolute: 25 }), 47.5)).toEqual([
+      { errCode: 'field.outOfBound', message: 'Value must be at most 47', resultType: 'error' },
+    ]);
+  });
+
+  it('fails a value below lowAbsolute when the form sets no min', () => {
+    expect(FieldValidator.validate(temperatureField({ hiAbsolute: 47, lowAbsolute: 25 }), 24.9)).toEqual([
+      { errCode: 'field.outOfBound', message: 'Value must be at least 25', resultType: 'error' },
+    ]);
+  });
+
+  it('accepts the limits themselves, as the server does', () => {
+    expect(FieldValidator.validate(temperatureField({ hiAbsolute: 47, lowAbsolute: 25 }), 47)).toEqual([]);
+    expect(FieldValidator.validate(temperatureField({ hiAbsolute: 47, lowAbsolute: 25 }), 25)).toEqual([]);
+  });
+
+  it("keeps the stricter of the form's limit and the concept's", () => {
+    const formStricter = temperatureField({ hiAbsolute: 47, lowAbsolute: 25 }, { min: '30', max: '43' });
+    expect(FieldValidator.validate(formStricter, 44)[0].message).toBe('Value must be at most 43');
+    expect(FieldValidator.validate(formStricter, 29)[0].message).toBe('Value must be at least 30');
+
+    const conceptStricter = temperatureField({ hiAbsolute: 47, lowAbsolute: 25 }, { min: '0', max: '100' });
+    expect(FieldValidator.validate(conceptStricter, 50)[0].message).toBe('Value must be at most 47');
+    expect(FieldValidator.validate(conceptStricter, 10)[0].message).toBe('Value must be at least 25');
+  });
+
+  it('adds no limit for a concept without absolute limits', () => {
+    expect(FieldValidator.validate(temperatureField({ hiAbsolute: null, lowAbsolute: null }), 1000)).toEqual([]);
+    expect(FieldValidator.validate(temperatureField({}), -5)).toEqual([]);
+  });
+});

@@ -1,4 +1,36 @@
 import { showSnackbar } from '@openmrs/esm-framework';
+import { translateValidationMessage } from '../validators/form-validator';
+
+/**
+ * Server validation codes the REST error carries as their own message, the key untranslated
+ * (ObsValidator rejects a number outside the concept's absolute limits with them; core's
+ * messages.properties only defines them with an `.obs.valueNumeric` suffix). Neither the field nor
+ * the limit is in the response, so the message stays general. A message the server did translate
+ * (a site's message properties) is kept.
+ */
+const untranslatedServerCodes: Record<string, [key: string, defaultValue: string]> = {
+  'error.value.outOfRange.high': [
+    'valueAboveAcceptedMaximum',
+    'A value is above the highest accepted for its question: check the numbers entered in the form',
+  ],
+  'error.outOfRange.high': [
+    'valueAboveAcceptedMaximum',
+    'A value is above the highest accepted for its question: check the numbers entered in the form',
+  ],
+  'error.value.outOfRange.low': [
+    'valueBelowAcceptedMinimum',
+    'A value is below the lowest accepted for its question: check the numbers entered in the form',
+  ],
+  'error.outOfRange.low': [
+    'valueBelowAcceptedMinimum',
+    'A value is below the lowest accepted for its question: check the numbers entered in the form',
+  ],
+};
+
+function messageOf(error: { code?: string; message?: string }): string {
+  const known = untranslatedServerCodes[error?.message || error?.code];
+  return known ? translateValidationMessage(...known) : error?.message;
+}
 
 export function reportError(error: Error, title: string): void {
   if (error) {
@@ -30,8 +62,10 @@ export function extractErrorMessagesFromResponse(errorObject) {
   }
 
   if (globalErrors?.length) {
-    return globalErrors.flatMap((error) => error.message);
+    return globalErrors.flatMap((error) => messageOf(error));
   } else {
-    return Object.values(fieldErrors).flatMap((errors: Array<Error>) => errors.map((error) => error.message));
+    return Object.values(fieldErrors).flatMap((errors: Array<{ code?: string; message?: string }>) =>
+      errors.map((error) => messageOf(error)),
+    );
   }
 }
