@@ -1075,6 +1075,24 @@ describe('ObsAdapter - getDisplayValue', () => {
 
     expect(displayValue).toBe('19-Nov-2016, 11:35 AM');
   });
+
+  it("writes a number with the session's decimal mark (UVL-EMR #723)", () => {
+    const field: FormField = {
+      label: 'Temperature',
+      type: 'obs',
+      questionOptions: { rendering: 'number', concept: '5088AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' },
+      id: 'temperature',
+    };
+    const language = window.i18next.language;
+    try {
+      expect(ObsAdapter.getDisplayValue(field, 36.4)).toBe('36.4');
+      window.i18next.language = 'fr';
+      expect(ObsAdapter.getDisplayValue(field, 36.4)).toBe('36,4');
+      expect(ObsAdapter.getDisplayValue(field, 72)).toBe('72');
+    } finally {
+      window.i18next.language = language;
+    }
+  });
 });
 
 describe('hasPreviousObsValueChanged', () => {

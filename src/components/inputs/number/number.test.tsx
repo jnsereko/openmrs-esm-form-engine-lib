@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { vi, describe, it, expect, beforeEach, type Mock } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, type Mock } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { act, render, screen } from '@testing-library/react';
 import { useFormProviderContext } from '../../../provider/form-provider';
@@ -219,6 +219,97 @@ describe('NumberField Component', () => {
 
       await user.type(screen.getByLabelText('Weight(kg):'), '72,5');
       expect(screen.getByText('Decimal values are not allowed for this field')).toBeInTheDocument();
+    });
+  });
+
+  // In French the field takes "36,4", so a value it shows is written "36,4" too, not "36.4" (UVL-EMR #723)
+  describe('in a French session', () => {
+    let language: string;
+
+    beforeEach(() => {
+      language = window.i18next.language;
+      window.i18next.language = 'fr';
+    });
+
+    afterEach(() => {
+      window.i18next.language = language;
+    });
+
+    it('shows the stored value of an encounter being edited with a comma', async () => {
+      await renderNumberField({
+        field: numberFieldMock,
+        value: 70.5,
+        errors: [],
+        warnings: [],
+        setFieldValue: vi.fn(),
+      });
+
+      expect((screen.getByLabelText('Weight(kg):') as HTMLInputElement).value).toBe('70,5');
+    });
+
+    it('shows a value set from elsewhere (a calculated field) with a comma', async () => {
+      const props = {
+        field: numberFieldMock as FormField,
+        value: undefined,
+        errors: [],
+        warnings: [],
+        setFieldValue: vi.fn(),
+      };
+      const { rerender } = render(<NumberField {...props} />);
+
+      rerender(<NumberField {...props} value={23.8} />);
+
+      expect((screen.getByLabelText('Weight(kg):') as HTMLInputElement).value).toBe('23,8');
+    });
+
+    it('keeps a value typed with a dot as typed', async () => {
+      const user = userEvent.setup();
+      function TypedNumberField() {
+        const [value, setValue] = useState<number | undefined>(undefined);
+        return (
+          <NumberField
+            field={numberFieldMock as FormField}
+            value={value}
+            errors={[]}
+            warnings={[]}
+            setFieldValue={setValue}
+          />
+        );
+      }
+      await act(() => render(<TypedNumberField />));
+
+      await user.type(screen.getByLabelText('Weight(kg):'), '36.4');
+
+      expect((screen.getByLabelText('Weight(kg):') as HTMLInputElement).value).toBe('36.4');
+    });
+
+    it('shows the value with a comma in view mode', async () => {
+      mockUseFormProviderContext.mockReturnValue({ ...mockProviderValues, sessionMode: 'view' });
+      await renderNumberField({
+        field: numberFieldMock,
+        value: 70.5,
+        errors: [],
+        warnings: [],
+        setFieldValue: vi.fn(),
+      });
+
+      expect(screen.getByText('70,5')).toBeInTheDocument();
+      expect(screen.queryByText('70.5')).not.toBeInTheDocument();
+    });
+
+    it('writes the range limit with a comma', async () => {
+      const user = userEvent.setup();
+      function ValidatedNumberField({ field }: { field: FormField }) {
+        const [value, setValue] = useState<number | undefined>(undefined);
+        const errors = FieldValidator.validate(field, value).filter((result) => result.resultType === 'error');
+        return <NumberField field={field} value={value} errors={errors} warnings={[]} setFieldValue={setValue} />;
+      }
+      const field = { ...numberFieldMock, questionOptions: { ...numberFieldMock.questionOptions, max: '37.7' } };
+      await act(() => render(<ValidatedNumberField field={field as FormField} />));
+
+      await user.type(screen.getByLabelText('Weight(kg):'), '38');
+
+      expect(screen.getByText('Value must be at most 37,7')).toBeInTheDocument();
     });
   });
 });

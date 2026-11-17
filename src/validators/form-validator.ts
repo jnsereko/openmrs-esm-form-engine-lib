@@ -2,6 +2,7 @@ import { translateFrom } from '@openmrs/esm-framework';
 import { type TOptions } from 'i18next';
 import { type FormFieldValidator, type FormField } from '../types';
 import { formEngineAppName } from '../globals';
+import { formatDecimal } from '../utils/decimal-format';
 export const fieldRequiredErrCode = 'field.required';
 export const fieldOutOfBoundErrCode = 'field.outOfBound';
 
@@ -61,14 +62,14 @@ export function numberInputRangeValidator(min: number, max: number, inputValue: 
   if (!Number.isNaN(min) && inputValue < min) {
     return addError(
       fieldOutOfBoundErrCode,
-      translateValidationMessage('valueMustBeAtLeast', 'Value must be at least {{min}}', { min }),
+      translateValidationMessage('valueMustBeAtLeast', 'Value must be at least {{min}}', { min: formatDecimal(min) }),
     );
   }
 
   if (!Number.isNaN(max) && inputValue > max) {
     return addError(
       fieldOutOfBoundErrCode,
-      translateValidationMessage('valueMustBeAtMost', 'Value must be at most {{max}}', { max }),
+      translateValidationMessage('valueMustBeAtMost', 'Value must be at most {{max}}', { max: formatDecimal(max) }),
     );
   }
 

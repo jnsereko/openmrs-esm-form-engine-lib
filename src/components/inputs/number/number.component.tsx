@@ -9,6 +9,7 @@ import { shouldUseInlineLayout } from '../../../utils/form-helper';
 import { useFormProviderContext } from '../../../provider/form-provider';
 import FieldLabel from '../../field-label/field-label.component';
 import FieldValueView from '../../value/view/field-value-view.component';
+import { formatDecimal } from '../../../utils/decimal-format';
 import styles from './number.scss';
 
 /** What a number field accepts as it is typed: digits, an optional leading minus, at most one dot or comma. */
@@ -40,15 +41,22 @@ const NumberField: React.FC<FormFieldInputProps> = ({ field, value, errors, warn
     [],
   );
 
-  // What is typed, kept as typed ("36," on the way to "36,4"); the field's value is the number it means
-  const [text, setText] = useState(() => getNumericValue(value)?.toString() ?? '');
+  // What is typed, kept as typed ("36," on the way to "36,4"); the field's value is the number it means.
+  // A value not typed here is written with the session's decimal mark, "36,4" in French (UVL-EMR #723)
+  const [text, setText] = useState(() => {
+    const number = getNumericValue(value);
+    return number === undefined ? '' : formatDecimal(number);
+  });
 
   // The value changed from elsewhere (an encounter loaded, a calculated field): show it, unless the text
   // already means it
   useEffect(() => {
     setText((current) => {
       const number = getNumericValue(value);
-      return parseDecimalText(current) === number ? current : number?.toString() ?? '';
+      if (parseDecimalText(current) === number) {
+        return current;
+      }
+      return number === undefined ? '' : formatDecimal(number);
     });
   }, [value, getNumericValue]);
 
@@ -71,6 +79,7 @@ const NumberField: React.FC<FormFieldInputProps> = ({ field, value, errors, warn
     return false;
   }, [sessionMode, field.readonly, field.inlineRendering, layoutType, workspaceLayout]);
 
+  const numericValue = getNumericValue(value);
   const max = getNumericValue(field.questionOptions.max);
   const min = getNumericValue(field.questionOptions.min);
 
@@ -78,7 +87,7 @@ const NumberField: React.FC<FormFieldInputProps> = ({ field, value, errors, warn
     <div className={styles.formField}>
       <FieldValueView
         label={t(field.label)}
-        value={value}
+        value={numericValue === undefined ? value : formatDecimal(numericValue)}
         conceptName={field.meta?.concept?.display}
         isInline={isInline}
       />

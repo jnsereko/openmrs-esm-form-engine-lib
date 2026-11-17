@@ -195,7 +195,7 @@ describe('FieldValidator - validate', () => {
     expect(FieldValidator.validate(numberInputField, 10, null)).toEqual([]);
   });
 
-  it('should look up range messages in the form engine translations with the limit as a parameter', () => {
+  it('should look up range messages in the form engine translations with the limit as a parameter, written as the session writes numbers', () => {
     FieldValidator.validate(numberInputField, 3, null);
     FieldValidator.validate(numberInputField, 100, null);
 
@@ -203,13 +203,13 @@ describe('FieldValidator - validate', () => {
       '@openmrs/esm-form-engine-app',
       'valueMustBeAtLeast',
       'Value must be at least {{min}}',
-      { min: 5 },
+      { min: '5' },
     );
     expect(translateFrom).toHaveBeenCalledWith(
       '@openmrs/esm-form-engine-app',
       'valueMustBeAtMost',
       'Value must be at most {{max}}',
-      { max: 10 },
+      { max: '10' },
     );
   });
 

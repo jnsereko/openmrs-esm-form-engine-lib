@@ -18,6 +18,7 @@ import {
   formatDateAsDisplayString,
 } from '../utils/common-utils';
 import { type FormContextProps } from '../provider/form-provider';
+import { formatDecimal } from '../utils/decimal-format';
 import { isEmpty } from '../validators/form-validator';
 import { attachmentUrl, getAttachmentByUuid, type OpenmrsResource } from '@openmrs/esm-framework';
 
@@ -70,6 +71,10 @@ export const ObsAdapter: FormFieldValueAdapter = {
     }
     if (codedTypes.includes(rendering)) {
       return field.questionOptions.answers?.find((option) => option.concept == value)?.label;
+    }
+    if (typeof value === 'number') {
+      // "36,4" in French, as the number field shows it (UVL-EMR #723)
+      return formatDecimal(value);
     }
     return value;
   },
