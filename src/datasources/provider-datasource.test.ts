@@ -84,6 +84,27 @@ describe('ProviderDataSource', () => {
       expect(result.map((provider) => provider.uuid)).toEqual(['uuid-3']);
     });
 
+    it('offers a provider again once the app config no longer lists it: nothing is excluded by default', async () => {
+      const results = [
+        { uuid: 'uuid-1', display: 'admin - Super User', identifier: 'admin' },
+        { uuid: 'uuid-2', display: 'service-account-eip - eip app', identifier: 'service-account-eip' },
+      ];
+      mockOpenmrsFetch.mockResolvedValue({ data: { results } } as any);
+
+      mockGetConfig.mockResolvedValue({ excludedProviderIdentifiers: ['admin', 'service-account-*'] });
+      expect(await ds.fetchData('a')).toEqual([]);
+
+      mockGetConfig.mockResolvedValue({ excludedProviderIdentifiers: ['service-account-*'] });
+      expect((await ds.fetchData('a')).map((provider) => provider.identifier)).toEqual(['admin']);
+
+      mockGetConfig.mockResolvedValue({ excludedProviderIdentifiers: [] });
+      expect((await ds.fetchData('a')).map((provider) => provider.identifier)).toEqual([
+        'admin',
+        'service-account-eip',
+      ]);
+      expect(mockGetConfig).toHaveBeenCalledWith('@openmrs/esm-form-engine-app');
+    });
+
     it('excludes nobody when the app config cannot be read', async () => {
       mockGetConfig.mockRejectedValue(new Error('no config'));
       vi.spyOn(console, 'warn').mockImplementation(() => {});

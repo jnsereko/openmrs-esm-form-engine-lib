@@ -322,6 +322,41 @@ describe('text typed but not picked from the list (UVL-EMR #725)', () => {
     expect(setFieldValueSpy).toHaveBeenLastCalledWith('malaria');
   });
 
+  it('flags nothing when the combobox puts the picked entry back over the typed text (UVL-EMR #759)', async () => {
+    fetchData
+      .mockResolvedValueOnce([{ uuid: 'sebastien', display: 'Sebastien Nsengumuremyi' }])
+      .mockResolvedValueOnce([]);
+    const { field } = await renderSearch();
+
+    type('Sebastien');
+    await advance(300);
+    fireEvent.click(screen.getByRole('option', { name: 'Sebastien Nsengumuremyi' }));
+    type('eip');
+    await advance(300);
+    leave();
+
+    // (Carbon's blur reducer writes the picked entry's label back into the input; jsdom does not run it.)
+    expect(field.meta.textNotPickedFromList).toBeUndefined();
+    expect(setFieldValueSpy).toHaveBeenLastCalledWith('sebastien');
+  });
+
+  it('still flags an entry label typed in full over the picked entry', async () => {
+    fetchData.mockResolvedValue([
+      { uuid: 'malaria', display: 'Malaria' },
+      { uuid: 'measles', display: 'Measles' },
+    ]);
+    const { field } = await renderSearch();
+
+    type('ma');
+    await advance(300);
+    fireEvent.click(screen.getByRole('option', { name: 'Malaria' }));
+    type('Measles');
+    await advance(300);
+    leave();
+
+    expect(field.meta.textNotPickedFromList).toBe('Measles');
+  });
+
   it('clears the flag and the value when the field is left empty', async () => {
     const { field } = await renderSearch();
 

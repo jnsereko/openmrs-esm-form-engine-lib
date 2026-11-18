@@ -51,6 +51,21 @@ export function prepareEncounter(
       encounterForSubmission.encounterProviders.findIndex(
         (encProvider) => encProvider.provider.uuid == encounterProvider,
       ) !== -1;
+    // A provider picked in the form's provider field replaces the encounter's other providers in that role:
+    // the server only adds providers, so those are voided. Without a provider field (or with it untouched),
+    // the provider is added when missing, as before.
+    const providerFieldChanged = Boolean(
+      allFormFields.find((field) => field.type === 'encounterProvider')?.meta.submission?.newValue,
+    );
+    if (providerFieldChanged) {
+      encounterForSubmission.encounterProviders = encounterForSubmission.encounterProviders.map((encProvider) =>
+        encProvider.uuid &&
+        getUuid(encProvider.provider) != encounterProvider &&
+        getUuid(encProvider.encounterRole) == encounterRole
+          ? { uuid: encProvider.uuid, voided: true, voidReason: 'Provider changed in the form' }
+          : encProvider,
+      );
+    }
     if (!hasCurrentProvider) {
       encounterForSubmission.encounterProviders = [
         ...encounterForSubmission.encounterProviders,
@@ -455,4 +470,8 @@ function prepareDiagnosis(fields: FormField[]) {
     .filter((o) => o);
 
   return diagnoses;
+}
+
+function getUuid(resource: string | { uuid?: string } | undefined): string | undefined {
+  return typeof resource === 'string' ? resource : resource?.uuid;
 }

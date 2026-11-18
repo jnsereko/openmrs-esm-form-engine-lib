@@ -1099,6 +1099,61 @@ describe('golden encounter payloads: edited encounters', () => {
     expect(payload.encounterProviders[0].provider.uuid).toBe(CURRENT_PROVIDER_UUID);
   });
 
+  describe('the provider field of an edited encounter (UVL-EMR #759)', () => {
+    const providerField = () =>
+      buildField({ id: 'provider', type: 'encounterProvider', questionOptions: { rendering: 'encounter-provider' } });
+
+    it('replaces the provider in its role when the field is changed: the previous one is voided', async () => {
+      const encounter = existingEncounter();
+
+      const payload = await preparePayload(
+        { fields: [providerField()], encounter },
+        { provider: 'picked-provider-uuid' },
+      );
+
+      expect(payload.encounterProviders).toEqual([
+        { uuid: 'encounter-provider-uuid', voided: true, voidReason: 'Provider changed in the form' },
+        { provider: 'picked-provider-uuid', encounterRole: 'clinician-role-uuid' },
+      ]);
+    });
+
+    it('keeps a provider of another role', async () => {
+      const encounter = existingEncounter({
+        encounterProviders: [
+          {
+            uuid: 'encounter-provider-uuid',
+            provider: { uuid: OTHER_PROVIDER_UUID, name: 'Other Provider' },
+            encounterRole: { uuid: 'clinician-role-uuid', name: 'Clinician' },
+          },
+          {
+            uuid: 'anaesthetist-uuid',
+            provider: { uuid: 'anaesthetist-provider-uuid', name: 'Anaesthetist' },
+            encounterRole: { uuid: 'anaesthetist-role-uuid', name: 'Anaesthetist' },
+          },
+        ],
+      });
+
+      const payload = await preparePayload(
+        { fields: [providerField()], encounter },
+        { provider: 'picked-provider-uuid' },
+      );
+
+      expect(payload.encounterProviders).toEqual([
+        { uuid: 'encounter-provider-uuid', voided: true, voidReason: 'Provider changed in the form' },
+        expect.objectContaining({ uuid: 'anaesthetist-uuid' }),
+        { provider: 'picked-provider-uuid', encounterRole: 'clinician-role-uuid' },
+      ]);
+    });
+
+    it('leaves the providers as they are when the field is not changed', async () => {
+      const encounter = existingEncounter();
+
+      const payload = await preparePayload({ fields: [providerField()], encounter });
+
+      expect(payload.encounterProviders).toEqual(encounter.encounterProviders);
+    });
+  });
+
   it('submits nothing when an edited value is changed back to the stored one', async () => {
     // `transformFieldValue` treats "equal to the stored value" as "nothing was
     // edited", so a user who edits a field and then restores the original text

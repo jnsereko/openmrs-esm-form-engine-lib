@@ -236,13 +236,18 @@ const UiSelectExtended: React.FC<FormFieldInputProps> = ({ field, errors, warnin
               // There is an issue with the onBlur event where the value is not persistently set to null when the user clears the input field.
               // This is a workaround to ensure that the value is set to null when the user clears the input field.
               const typedText = event.target.value;
+              // The combobox puts the selected entry's text back in place of typed text that is no entry's
+              // label: nothing is left unpicked then, the field shows its value again.
+              const restoresSelectedItem =
+                Boolean(selectedItem) && !items.some((item) => getItemText(item) === typedText);
               if (!typedText) {
                 setTextNotPickedFromList(field, undefined);
                 setFieldValue(null);
-              } else if (typedText !== getItemText(selectedItem)) {
+              } else if (typedText !== getItemText(selectedItem) && !restoresSelectedItem) {
                 // Text typed without picking an entry: the field keeps its value (none, or the entry picked
-                // before) and the combobox empties the input after this handler. Flag the text, and set the
-                // value again so the field is validated: the error names the text and blocks the save.
+                // before) and the combobox empties the input after this handler, or keeps an entry's full
+                // label typed. Flag the text, and set the value again so the field is validated: the error
+                // names the text and blocks the save.
                 setTextNotPickedFromList(field, typedText);
                 setFieldValue(value);
               } else if (field.meta?.textNotPickedFromList) {
