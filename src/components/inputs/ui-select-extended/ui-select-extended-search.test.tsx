@@ -6,7 +6,7 @@ import { type DataSource, type FormField } from '../../../types';
 import { buildField, renderWithFormContext } from '../../../test-support';
 import { useFormProviderContext } from '../../../provider/form-provider';
 import * as registry from '../../../registry/registry';
-import UiSelectExtended from './ui-select-extended.component';
+import UiSelectExtended, { findItemsNamed } from './ui-select-extended.component';
 
 // These tests drive the input with fireEvent rather than userEvent. userEvent awaits a
 // setTimeout inside testing-library's async wrapper that only advances under jest's fake
@@ -294,7 +294,7 @@ describe('text typed but not picked from the list (UVL-EMR #725)', () => {
     expect(setFieldValueSpy).toHaveBeenLastCalledWith('');
   });
 
-  it('flags a label typed in full but not picked', async () => {
+  it('picks the one entry whose label is typed in full (UVL-EMR #768)', async () => {
     fetchData.mockResolvedValue([{ uuid: 'malaria', display: 'Malaria' }]);
     const { field } = await renderSearch();
 
@@ -302,7 +302,8 @@ describe('text typed but not picked from the list (UVL-EMR #725)', () => {
     await advance(300);
     leave();
 
-    expect(field.meta.textNotPickedFromList).toBe('Malaria');
+    expect(field.meta.textNotPickedFromList).toBeUndefined();
+    expect(setFieldValueSpy).toHaveBeenLastCalledWith('malaria');
   });
 
   it('clears the flag when an entry is picked', async () => {
@@ -340,7 +341,7 @@ describe('text typed but not picked from the list (UVL-EMR #725)', () => {
     expect(setFieldValueSpy).toHaveBeenLastCalledWith('sebastien');
   });
 
-  it('still flags an entry label typed in full over the picked entry', async () => {
+  it('picks the entry whose label is typed in full over the picked entry (UVL-EMR #768)', async () => {
     fetchData.mockResolvedValue([
       { uuid: 'malaria', display: 'Malaria' },
       { uuid: 'measles', display: 'Measles' },
@@ -354,7 +355,9 @@ describe('text typed but not picked from the list (UVL-EMR #725)', () => {
     await advance(300);
     leave();
 
-    expect(field.meta.textNotPickedFromList).toBe('Measles');
+    expect(field.meta.textNotPickedFromList).toBeUndefined();
+    expect(setFieldValueSpy).toHaveBeenLastCalledWith('measles');
+    expect(screen.getByRole('combobox')).toHaveValue('Measles');
   });
 
   it('clears the flag and the value when the field is left empty', async () => {
@@ -380,5 +383,183 @@ describe('text typed but not picked from the list (UVL-EMR #725)', () => {
     leave();
 
     expect(field.meta.textNotPickedFromList).toBeUndefined();
+  });
+});
+
+describe('a provider typed over the picked one without picking it (UVL-EMR #768)', () => {
+  const sebastien = {
+    uuid: 'sebastien',
+    identifier: 'sebastien.nsengumuremyi',
+    display: 'sebastien.nsengumuremyi - Sebastien Nsengumuremyi',
+  };
+  const nephtalie = {
+    uuid: 'nephtalie',
+    identifier: 'nephtalie.cimana',
+    display: 'nephtalie.cimana - Nephtalie CIMANA',
+  };
+
+  function leave() {
+    fireEvent.blur(screen.getByRole('combobox'));
+  }
+
+  async function pickSebastien() {
+    fetchData.mockResolvedValueOnce([sebastien]);
+    const rendered = await renderSearch();
+    type('Sebastien');
+    await advance(300);
+    fireEvent.click(screen.getByRole('option', { name: sebastien.display }));
+    return rendered;
+  }
+
+  it('picks the provider whose name is typed in full, not the one picked before', async () => {
+    const { field } = await pickSebastien();
+    fetchData.mockResolvedValueOnce([nephtalie]);
+
+    type('Nephtalie CIMANA');
+    await advance(300);
+    leave();
+    await advance(0);
+
+    expect(setFieldValueSpy).toHaveBeenLastCalledWith('nephtalie');
+    expect(field.meta.textNotPickedFromList).toBeUndefined();
+    expect(screen.getByRole('combobox')).toHaveValue(nephtalie.display);
+  });
+
+  it('picks the provider whose identifier is typed, ignoring case and spaces', async () => {
+    const { field } = await pickSebastien();
+    fetchData.mockResolvedValueOnce([nephtalie]);
+
+    type('  NEPHTALIE.cimana ');
+    await advance(300);
+    leave();
+
+    expect(setFieldValueSpy).toHaveBeenLastCalledWith('nephtalie');
+    expect(field.meta.textNotPickedFromList).toBeUndefined();
+  });
+
+  it('blocks the save when the typed name is that of two providers', async () => {
+    const { field } = await pickSebastien();
+    fetchData.mockResolvedValueOnce([
+      nephtalie,
+      { ...nephtalie, uuid: 'nephtalie-2', identifier: 'ncimana', display: 'ncimana - Nephtalie Cimana' },
+    ]);
+
+    type('Nephtalie Cimana');
+    await advance(300);
+    leave();
+
+    expect(field.meta.textNotPickedFromList).toBe('Nephtalie Cimana');
+    expect(setFieldValueSpy).toHaveBeenLastCalledWith('sebastien');
+  });
+
+  it('blocks the save while the search for the text left in the field has not answered, then picks the provider it names', async () => {
+    const { field } = await pickSebastien();
+    let answer: (items: OpenmrsResource[]) => void;
+    fetchData.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+
+    type('Nephtalie CIMANA');
+    await advance(50);
+    leave();
+
+    expect(field.meta.textNotPickedFromList).toBe('Nephtalie CIMANA');
+    expect(fetchData).toHaveBeenLastCalledWith('Nephtalie CIMANA', { tag: 'initial' });
+
+    await act(async () => answer([nephtalie]));
+
+    expect(field.meta.textNotPickedFromList).toBeUndefined();
+    expect(setFieldValueSpy).toHaveBeenLastCalledWith('nephtalie');
+    expect(screen.getByRole('combobox')).toHaveValue(nephtalie.display);
+  });
+
+  it('puts the picked provider back once the late search finds nobody of that name', async () => {
+    const { field } = await pickSebastien();
+    let answer: (items: OpenmrsResource[]) => void;
+    fetchData.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+
+    type('zzqx');
+    await advance(50);
+    leave();
+    expect(field.meta.textNotPickedFromList).toBe('zzqx');
+
+    await act(async () => answer([]));
+    await advance(0);
+
+    expect(field.meta.textNotPickedFromList).toBeUndefined();
+    expect(setFieldValueSpy).toHaveBeenLastCalledWith('sebastien');
+    expect(screen.getByRole('combobox')).toHaveValue(sebastien.display);
+  });
+
+  it('drops the late answer when typing has resumed in the field', async () => {
+    const { field } = await pickSebastien();
+    let answer: (items: OpenmrsResource[]) => void;
+    fetchData.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+
+    type('Nephtalie CIMANA');
+    await advance(50);
+    leave();
+    screen.getByRole('combobox').focus();
+    type('Nephtalie CIMANA x');
+    await advance(0);
+
+    await act(async () => answer([nephtalie]));
+
+    expect(setFieldValueSpy).not.toHaveBeenLastCalledWith('nephtalie');
+    expect(field.meta.textNotPickedFromList).toBe('Nephtalie CIMANA');
+  });
+
+  it('shows the picked provider again when the field is left (by Tab) with text that names nobody', async () => {
+    const { field } = await pickSebastien();
+    fetchData.mockResolvedValueOnce([]);
+
+    type('zzqx');
+    await advance(300);
+    leave();
+
+    // The combobox does not put the picked entry back on Tab: the text left on screen was not what is saved.
+    expect(screen.getByRole('combobox')).toHaveValue(sebastien.display);
+    expect(field.meta.textNotPickedFromList).toBeUndefined();
+    expect(setFieldValueSpy).toHaveBeenLastCalledWith('sebastien');
+  });
+
+  it('shows the provider of an edited encounter again when the field is left with text that names nobody', async () => {
+    vi.mocked(datasource.fetchSingleItem).mockResolvedValue(sebastien);
+    const { field } = await renderSearch('sebastien');
+    fetchData.mockResolvedValueOnce([nephtalie]);
+
+    type('Nephtalie');
+    await advance(300);
+    leave();
+
+    expect(screen.getByRole('combobox')).toHaveValue(sebastien.display);
+    expect(field.meta.textNotPickedFromList).toBeUndefined();
+    expect(setFieldValueSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('findItemsNamed (UVL-EMR #768)', () => {
+  const items = [
+    { uuid: 'a', identifier: 'nephtalie.cimana', display: 'nephtalie.cimana - Nephtalie CIMANA' },
+    { uuid: 'b', display: 'Malaria' },
+    { uuid: 'c', code: 'B54', display: 'Paludisme' },
+    { uuid: 'd', display: 'Diabetes - type 2' },
+  ];
+
+  it.each([
+    ['Nephtalie CIMANA', ['a']],
+    ['nephtalie  cimana', ['a']],
+    ['nephtalie.cimana', ['a']],
+    ['nephtalie.cimana - Nephtalie CIMANA', ['a']],
+    ['malaria', ['b']],
+    ['B54 Paludisme', ['c']],
+    ['Paludisme', ['c']],
+    ['Nephtalie', []],
+    ['type 2', []],
+    ['', []],
+  ])('« %s » names %j', (text, uuids) => {
+    expect(findItemsNamed(items, text).map((item) => item.uuid)).toEqual(uuids);
+  });
+
+  it('names an entry once when it is listed twice', () => {
+    expect(findItemsNamed([items[1], { ...items[1] }], 'Malaria')).toHaveLength(1);
   });
 });

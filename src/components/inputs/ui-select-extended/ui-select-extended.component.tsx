@@ -58,6 +58,12 @@ const UiSelectExtended: React.FC<FormFieldInputProps> = ({ field, errors, warnin
   }, [items, value]);
 
   const searchGeneration = useRef(0);
+  // The term the listed entries are the search results for.
+  const resultsTerm = useRef<string>(null);
+  // Counts the field's leaves and the typing after them: a check started on leaving the field is dropped
+  // when it is no longer the latest.
+  const leaveCheck = useRef(0);
+  const comboBoxActions = useRef(null);
 
   const debouncedSearch = useMemo(
     () =>
@@ -71,6 +77,7 @@ const UiSelectExtended: React.FC<FormFieldInputProps> = ({ field, errors, warnin
             if (generation !== searchGeneration.current) {
               return;
             }
+            resultsTerm.current = searchTerm;
             if (dataItems.length) {
               setItems((currentItems) => {
                 const currentValue = getValues(field.id);
@@ -178,6 +185,20 @@ const UiSelectExtended: React.FC<FormFieldInputProps> = ({ field, errors, warnin
     };
   }, [value, isDirty, dataSource, isSearchable, selectedItem, config]);
 
+  /** Picks an entry as a click in the list does, whether or not it is listed. */
+  const pickItem = (item: OpenmrsResource) => {
+    lastSelectedItem.current = item;
+    setItems((currentItems) =>
+      currentItems.some((currentItem) => currentItem.uuid == item.uuid) ? currentItems : [item, ...currentItems],
+    );
+    if (getValues(field.id) == item.uuid) {
+      setTextNotPickedFromList(field, undefined);
+      setFieldValue(item.uuid);
+    }
+    // The combobox calls onChange for an entry other than the selected one, and shows the entry's text.
+    comboBoxActions.current?.selectItem(item);
+  };
+
   if (isLoading) {
     return <DropdownSkeleton />;
   }
@@ -226,6 +247,10 @@ const UiSelectExtended: React.FC<FormFieldInputProps> = ({ field, errors, warnin
                 isProcessingSelection.current = false;
                 return;
               }
+              if (document.activeElement === document.getElementById(field.id)) {
+                // Typed: a check started when the field was left no longer applies.
+                leaveCheck.current++;
+              }
               if (field.questionOptions.isSearchable) {
                 // The input showing the selected entry's text (set by the combobox, not typed) is no search.
                 setSearchTerm(selectedItem && value === getItemText(selectedItem) ? '' : value);
@@ -236,25 +261,61 @@ const UiSelectExtended: React.FC<FormFieldInputProps> = ({ field, errors, warnin
               // There is an issue with the onBlur event where the value is not persistently set to null when the user clears the input field.
               // This is a workaround to ensure that the value is set to null when the user clears the input field.
               const typedText = event.target.value;
-              // The combobox puts the selected entry's text back in place of typed text that is no entry's
-              // label: nothing is left unpicked then, the field shows its value again.
-              const restoresSelectedItem =
-                Boolean(selectedItem) && !items.some((item) => getItemText(item) === typedText);
+              const check = ++leaveCheck.current;
               if (!typedText) {
                 setTextNotPickedFromList(field, undefined);
                 setFieldValue(null);
-              } else if (typedText !== getItemText(selectedItem) && !restoresSelectedItem) {
-                // Text typed without picking an entry: the field keeps its value (none, or the entry picked
-                // before) and the combobox empties the input after this handler, or keeps an entry's full
-                // label typed. Flag the text, and set the value again so the field is validated: the error
-                // names the text and blocks the save.
-                setTextNotPickedFromList(field, typedText);
-                setFieldValue(value);
-              } else if (field.meta?.textNotPickedFromList) {
-                setTextNotPickedFromList(field, undefined);
-                setFieldValue(value);
+                return;
               }
+              if (selectedItem && typedText === getItemText(selectedItem)) {
+                if (field.meta?.textNotPickedFromList) {
+                  setTextNotPickedFromList(field, undefined);
+                  setFieldValue(value);
+                }
+                return;
+              }
+              const pickedItem = selectedItem;
+              // Text typed without picking an entry. It is settled against the entries found for it: the
+              // one entry it names is picked; text that names no entry puts the picked entry back (in the
+              // input too: the combobox does not on Tab); otherwise, or with no entry picked, the text is
+              // flagged on the field, which is validated again: the error names it and blocks the save.
+              const settle = (foundItems: Array<OpenmrsResource>) => {
+                const namedItems = findItemsNamed(foundItems, typedText);
+                if (namedItems.length === 1) {
+                  pickItem(namedItems[0]);
+                } else if (!namedItems.length && pickedItem) {
+                  if (field.meta?.textNotPickedFromList) {
+                    setTextNotPickedFromList(field, undefined);
+                    setFieldValue(getValues(field.id));
+                  }
+                  comboBoxActions.current?.selectItem(pickedItem);
+                } else {
+                  setTextNotPickedFromList(field, typedText);
+                  setFieldValue(getValues(field.id));
+                }
+              };
+              if (!isSearchable || resultsTerm.current === typedText) {
+                settle(items);
+                return;
+              }
+              // The search for the text has not answered yet: the text blocks the save until it has.
+              setTextNotPickedFromList(field, typedText);
+              setFieldValue(value);
+              const valueOnLeaving = value;
+              dataSource
+                ?.fetchData(typedText, config)
+                .then((dataItems) => {
+                  const isLatest =
+                    check === leaveCheck.current &&
+                    field.meta?.textNotPickedFromList === typedText &&
+                    getValues(field.id) === valueOnLeaving;
+                  if (isLatest) {
+                    settle(dataItems.map((item) => dataSource.toUuidAndDisplay(item, config)));
+                  }
+                })
+                .catch((error) => console.error(error));
             }}
+            downshiftActions={comboBoxActions}
           />
           {isSearching && <InlineLoading className={styles.loader} description={t('searching', 'Searching') + '...'} />}
         </Layer>
@@ -274,6 +335,36 @@ export function setTextNotPickedFromList(field: FormField, text: string | undefi
     field.meta = {};
   }
   field.meta.textNotPickedFromList = text || undefined;
+}
+
+/**
+ * The entries a text names, ignoring case and repeated spaces: by their text in the list, their display,
+ * or, for an entry with an identifier whose display is « identifier - name » (a provider), by that name or
+ * that identifier.
+ */
+export function findItemsNamed<T extends { uuid?: string; code?: string; display?: string; identifier?: string }>(
+  items: Array<T>,
+  text: string,
+): Array<T> {
+  const wanted = normalizeName(text);
+  if (!wanted) {
+    return [];
+  }
+  const named = items.filter((item) => item && getItemNames(item).some((name) => normalizeName(name) === wanted));
+  return named.filter((item, index) => named.findIndex((other) => other.uuid == item.uuid) === index);
+}
+
+function getItemNames(item: { code?: string; display?: string; identifier?: string }): Array<string> {
+  const names = [getItemText(item), item.display];
+  const identifierPrefix = item.identifier ? `${item.identifier} - ` : null;
+  if (identifierPrefix && item.display?.startsWith(identifierPrefix)) {
+    names.push(item.display.slice(identifierPrefix.length), item.identifier);
+  }
+  return names.filter(Boolean);
+}
+
+function normalizeName(text: string): string {
+  return (text ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
 }
 
 export function getItemText(item?: { code?: string; display?: string }): string {
