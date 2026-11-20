@@ -87,9 +87,10 @@ export function parseClockTime(dateString: string): Date {
 
 /**
  * Returns `date` if it falls within the visit's start/stop window, otherwise the
- * visit's start datetime. This keeps default encounter datetimes valid when filling
- * forms against a past (stopped) visit via retrospective data entry; the backend
- * rejects encounters dated outside the visit window.
+ * nearest end of the window: the visit's start for a date before it, its stop for a
+ * date after it. This keeps default encounter datetimes valid when filling forms
+ * against a past (stopped) visit via retrospective data entry; the backend rejects
+ * encounters dated outside the visit window (the bounds themselves are accepted).
  */
 export function getDateWithinVisitWindow(date: Date, visit?: Visit): Date {
   if (!visit) {
@@ -97,8 +98,33 @@ export function getDateWithinVisitWindow(date: Date, visit?: Visit): Date {
   }
   const visitStart = visit.startDatetime ? new Date(visit.startDatetime) : null;
   const visitStop = visit.stopDatetime ? new Date(visit.stopDatetime) : null;
-  if ((visitStart && date < visitStart) || (visitStop && date > visitStop)) {
-    return visitStart ?? visitStop;
+  if (visitStart && date < visitStart) {
+    return visitStart;
+  }
+  if (visitStop && date > visitStop) {
+    return visitStop;
+  }
+  return date;
+}
+
+function isSameLocalDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+/**
+ * The encounter date a form's own date question gives, brought into the visit's window when it only
+ * misses it on the visit's first day (before the visit started: a date-only picker gives 00:00) or
+ * on the day the visit stopped (after it stopped). A date on another day is the user's choice and is
+ * kept: the server refuses it and the message says why.
+ */
+export function getEncounterDateWithinVisit(date: Date, visit?: Visit): Date {
+  const visitStart = visit?.startDatetime ? new Date(visit.startDatetime) : null;
+  const visitStop = visit?.stopDatetime ? new Date(visit.stopDatetime) : null;
+  if (visitStart && date < visitStart && isSameLocalDay(date, visitStart)) {
+    return visitStart;
+  }
+  if (visitStop && date > visitStop && isSameLocalDay(date, visitStop)) {
+    return visitStop;
   }
   return date;
 }

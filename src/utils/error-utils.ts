@@ -27,7 +27,22 @@ const untranslatedServerCodes: Record<string, [key: string, defaultValue: string
   ],
 };
 
+/**
+ * Server codes whose English sentence tells the user nothing to do. The code is read first because
+ * the server sends the sentence in its own language.
+ */
+const serverCodesWithAdvice: Record<string, [key: string, defaultValue: string]> = {
+  'Encounter.datetimeShouldBeInVisitDatesRange': [
+    'encounterDatetimeOutsideVisit',
+    'The date of the form is outside its visit (the visit has ended, or the date is before it started). Choose a date within the visit, or start a new visit.',
+  ],
+};
+
 function messageOf(error: { code?: string; message?: string }): string {
+  const advice = serverCodesWithAdvice[error?.code];
+  if (advice) {
+    return translateValidationMessage(...advice);
+  }
   const known = untranslatedServerCodes[error?.message || error?.code];
   return known ? translateValidationMessage(...known) : error?.message;
 }

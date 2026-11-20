@@ -1065,6 +1065,68 @@ describe('EncounterFormProcessor', () => {
       expect(payload.encounterDatetime).toBeUndefined();
     });
 
+    describe("with the form's own encounter date question", () => {
+      const dated = (date: Date, overrides: Partial<FormContextProps> = {}) =>
+        buildSubmissionContext({
+          formFields: [withSubmission(buildField({ id: 'encDate', type: 'encounterDatetime' }), date)],
+          ...overrides,
+        });
+      const firstDay = new Date(2026, 10, 15, 0, 0);
+      const startLocal = new Date(2026, 10, 15, 8, 0).toISOString();
+      const stopLocal = new Date(2026, 10, 15, 17, 0).toISOString();
+
+      it("files a date-only date on the visit's first day at the visit start, not at 00:00", async () => {
+        vi.mocked(getVisitDates).mockResolvedValue({
+          uuid: 'first-day-visit',
+          startDatetime: startLocal,
+          stopDatetime: null,
+        });
+        const visit = { ...openVisit, uuid: 'first-day-visit', startDatetime: startLocal } as never;
+
+        await submit(dated(firstDay, { visit }));
+
+        const [, payload] = vi.mocked(saveEncounter).mock.calls[0];
+        expect(new Date(payload.encounterDatetime)).toEqual(new Date(startLocal));
+      });
+
+      it('files a date after the stop, on the day the visit stopped, at the visit stop', async () => {
+        const visit = { ...openVisit, startDatetime: startLocal, stopDatetime: stopLocal } as never;
+
+        await submit(dated(new Date(2026, 10, 15, 20, 0), { visit }));
+
+        const [, payload] = vi.mocked(saveEncounter).mock.calls[0];
+        expect(new Date(payload.encounterDatetime)).toEqual(new Date(stopLocal));
+      });
+
+      it('files a form saved from a stale tab, after the visit was ended, at the visit stop, not its start', async () => {
+        vi.mocked(getVisitDates).mockResolvedValue({
+          uuid: 'stale-tab-visit',
+          startDatetime: startLocal,
+          stopDatetime: stopLocal,
+        });
+        const context = buildSubmissionContext({
+          visit: { ...openVisit, uuid: 'stale-tab-visit', startDatetime: startLocal } as never,
+          sessionDate: new Date(2026, 10, 16, 7, 30),
+        });
+
+        await expect(submit(context)).rejects.toEqual(expect.objectContaining({ title: 'visitHasEnded' }));
+        await submit(context);
+
+        const [, payload] = vi.mocked(saveEncounter).mock.calls[0];
+        expect(new Date(payload.encounterDatetime)).toEqual(new Date(stopLocal));
+      });
+
+      it('keeps a date on another day than the visit, for the server to refuse with its message', async () => {
+        const visit = { ...openVisit, startDatetime: startLocal, stopDatetime: stopLocal } as never;
+        const elsewhere = new Date(2026, 10, 20, 9, 0);
+
+        await submit(dated(elsewhere, { visit }));
+
+        const [, payload] = vi.mocked(saveEncounter).mock.calls[0];
+        expect(payload.encounterDatetime).toEqual(elsewhere);
+      });
+    });
+
     it('does not check the visit when editing an encounter', async () => {
       const context = buildSubmissionContext({
         visit: { ...openVisit, uuid: 'edited-visit-uuid' } as never,

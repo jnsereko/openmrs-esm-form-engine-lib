@@ -2,6 +2,7 @@ import {
   clearSubmission,
   flattenObsList,
   getDateWithinVisitWindow,
+  getEncounterDateWithinVisit,
   gracefullySetSubmission,
   hasRendering,
   hasSubmission,
@@ -170,13 +171,23 @@ describe('getDateWithinVisitWindow', () => {
     expect(getDateWithinVisitWindow(date, visit)).toEqual(date);
   });
 
-  it('should return the visit start datetime when the date is after the visit window (retrospective entry)', () => {
+  it('should return the visit stop datetime when the date is after the visit window (retrospective entry)', () => {
     const visit = {
       startDatetime: '2026-06-10T09:00:00.000Z',
       stopDatetime: '2026-06-10T17:00:00.000Z',
     } as Visit;
 
-    expect(getDateWithinVisitWindow(date, visit)).toEqual(new Date('2026-06-10T09:00:00.000Z'));
+    expect(getDateWithinVisitWindow(date, visit)).toEqual(new Date('2026-06-10T17:00:00.000Z'));
+  });
+
+  it('should accept the bounds of the window as they are', () => {
+    const visit = {
+      startDatetime: '2026-06-11T09:00:00.000Z',
+      stopDatetime: '2026-06-11T17:00:00.000Z',
+    } as Visit;
+
+    expect(getDateWithinVisitWindow(new Date(visit.startDatetime), visit)).toEqual(new Date(visit.startDatetime));
+    expect(getDateWithinVisitWindow(new Date(visit.stopDatetime), visit)).toEqual(new Date(visit.stopDatetime));
   });
 
   it('should return the visit start datetime when the date is before the visit window', () => {
@@ -186,6 +197,41 @@ describe('getDateWithinVisitWindow', () => {
     } as Visit;
 
     expect(getDateWithinVisitWindow(date, visit)).toEqual(new Date('2026-06-12T09:00:00.000Z'));
+  });
+});
+
+describe('getEncounterDateWithinVisit', () => {
+  const visit = {
+    startDatetime: new Date(2026, 5, 10, 9, 30).toISOString(),
+    stopDatetime: new Date(2026, 5, 12, 11, 0).toISOString(),
+  } as Visit;
+
+  it('should return the visit start for a date-only date on the first day (00:00 of the day)', () => {
+    expect(getEncounterDateWithinVisit(new Date(2026, 5, 10, 0, 0), visit)).toEqual(new Date(visit.startDatetime));
+  });
+
+  it('should return the visit stop for a date after the stop on the day the visit stopped', () => {
+    expect(getEncounterDateWithinVisit(new Date(2026, 5, 12, 18, 0), visit)).toEqual(new Date(visit.stopDatetime));
+  });
+
+  it('should keep a date within the window', () => {
+    const inside = new Date(2026, 5, 11, 0, 0);
+    expect(getEncounterDateWithinVisit(inside, visit)).toEqual(inside);
+  });
+
+  it('should keep a date on another day than the visit start or stop, for the server to refuse', () => {
+    const before = new Date(2026, 5, 9, 12, 0);
+    const after = new Date(2026, 5, 14, 12, 0);
+    expect(getEncounterDateWithinVisit(before, visit)).toEqual(before);
+    expect(getEncounterDateWithinVisit(after, visit)).toEqual(after);
+  });
+
+  it('should keep the date when there is no visit or the visit is open', () => {
+    const date = new Date(2026, 5, 10, 0, 0);
+    expect(getEncounterDateWithinVisit(date, undefined)).toEqual(date);
+    expect(getEncounterDateWithinVisit(new Date(2026, 5, 14, 0, 0), { ...visit, stopDatetime: null } as Visit)).toEqual(
+      new Date(2026, 5, 14, 0, 0),
+    );
   });
 });
 

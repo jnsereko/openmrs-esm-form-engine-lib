@@ -33,7 +33,7 @@ import { extractErrorMessagesFromResponse } from '../../utils/error-utils';
 import { extractObsValueAndDisplay } from '../../utils/form-helper';
 import { FormProcessor, type FormProcessorContextSetters } from '../form-processor';
 import { getPreviousEncounter, getVisitDates, saveEncounter } from '../../api';
-import { getDateWithinVisitWindow, hasRendering } from '../../utils/common-utils';
+import { getDateWithinVisitWindow, getEncounterDateWithinVisit, hasRendering } from '../../utils/common-utils';
 import { isEmpty } from '../../validators/form-validator';
 import { formEngineAppName } from '../../globals';
 import { type FormContextProps } from '../../provider/form-provider';
@@ -174,7 +174,18 @@ export class EncounterFormProcessor extends FormProcessor {
     const t = (key: string, defaultValue: string, options?: Omit<TOptions, 'ns' | 'defaultValue'>) =>
       translateFrom(formEngineAppName, key, defaultValue, options);
     const context = await withVisitAsItIsNow(formContext, abortController, t);
-    const { encounterRole, encounterProvider, encounterDate, encounterLocation } = getMutableSessionProps(context);
+    const {
+      encounterRole,
+      encounterProvider,
+      encounterDate: requestedDate,
+      encounterLocation,
+    } = getMutableSessionProps(context);
+    // A new encounter dated by the form's own date question (a date-only picker gives 00:00) can fall
+    // just outside its visit, which the server refuses: bring it to the visit's start or stop
+    const encounterDate =
+      requestedDate && !context.domainObjectValue
+        ? getEncounterDateWithinVisit(requestedDate, context.visit)
+        : requestedDate;
     const patientIdentifiers = preparePatientIdentifiers(context.formFields, encounterLocation);
     const encounter = prepareEncounter(context, encounterDate, encounterRole, encounterProvider, encounterLocation);
 

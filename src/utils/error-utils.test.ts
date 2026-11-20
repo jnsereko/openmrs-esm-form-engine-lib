@@ -5,6 +5,30 @@ import { withEnglishTranslationFallbacks } from '../test-support';
 
 withEnglishTranslationFallbacks();
 
+describe('extractErrorMessagesFromResponse, encounter date outside its visit', () => {
+  it('says what to do instead of the server sentence, whatever the language the server sent it in', () => {
+    const error = {
+      responseBody: {
+        error: {
+          message: 'Invalid Submission',
+          globalErrors: [],
+          fieldErrors: {
+            encounterDatetime: [
+              {
+                code: 'Encounter.datetimeShouldBeInVisitDatesRange',
+                message: 'The encounter datetime should be between the visit start and stop dates.',
+              },
+            ],
+          },
+        },
+      },
+    };
+    const [message] = extractErrorMessagesFromResponse(error);
+    expect(message).toContain('Choose a date within the visit, or start a new visit');
+    expect(message).not.toContain('should be between');
+  });
+});
+
 describe('extractErrorMessagesFromResponse', () => {
   it('returns the top-level REST error message when there are no field or global errors', () => {
     const error = { responseBody: { error: { message: 'Invalid submission' } } };
